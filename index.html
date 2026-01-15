@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>麻雀 Mahjong Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🀄</text></svg>">
+</head>
+<body>
+  <div id="app">
+    <!-- Loading Screen -->
+    <div id="loading" class="screen active">
+      <div class="loading-content">
+        <div class="loading-tile">🀄</div>
+        <div class="loading-text">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="screen">
+      <div class="auth-container">
+        <div class="auth-header">
+          <div class="logo">
+            <span class="logo-tile">🀄</span>
+            <h1>麻雀</h1>
+            <p>Mahjong Online</p>
+          </div>
+        </div>
+
+        <div class="auth-tabs">
+          <button class="tab-btn active" data-tab="login">Login</button>
+          <button class="tab-btn" data-tab="register">Register</button>
+        </div>
+
+        <form id="login-form" class="auth-form active">
+          <div class="input-group">
+            <input type="text" id="login-username" placeholder=" " required>
+            <label>Username</label>
+          </div>
+          <div class="input-group">
+            <input type="password" id="login-password" placeholder=" " required>
+            <label>Password</label>
+          </div>
+          <button type="submit" class="btn btn-primary">Enter</button>
+          <div class="error-message" id="login-error"></div>
+        </form>
+
+        <form id="register-form" class="auth-form">
+          <div class="input-group">
+            <input type="text" id="reg-username" placeholder=" " required minlength="3" maxlength="20">
+            <label>Username</label>
+          </div>
+          <div class="input-group">
+            <input type="text" id="reg-display" placeholder=" " required>
+            <label>Display Name</label>
+          </div>
+          <div class="input-group">
+            <input type="email" id="reg-email" placeholder=" ">
+            <label>Email (optional)</label>
+          </div>
+          <div class="input-group">
+            <input type="password" id="reg-password" placeholder=" " required minlength="4">
+            <label>Password</label>
+          </div>
+          <button type="submit" class="btn btn-primary">Create Account</button>
+          <div class="error-message" id="register-error"></div>
+        </form>
+      </div>
+
+      <div class="floating-tiles">
+        <span style="--delay: 0s; --x: 10%">🀙</span>
+        <span style="--delay: 2s; --x: 25%">🀐</span>
+        <span style="--delay: 4s; --x: 40%">🀇</span>
+        <span style="--delay: 1s; --x: 55%">🀀</span>
+        <span style="--delay: 3s; --x: 70%">🀅</span>
+        <span style="--delay: 5s; --x: 85%">🀄</span>
+      </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="screen">
+      <header class="lobby-header">
+        <div class="user-info">
+          <span class="user-avatar">🀄</span>
+          <span class="user-name" id="lobby-username"></span>
+        </div>
+        <nav class="lobby-nav">
+          <button class="nav-btn active" data-view="play">Play</button>
+          <button class="nav-btn" data-view="leaderboard">Leaderboard</button>
+          <button class="nav-btn" data-view="history">History</button>
+          <button class="nav-btn" data-view="profile">Profile</button>
+        </nav>
+        <button class="btn btn-outline" id="logout-btn">Logout</button>
+      </header>
+
+      <!-- Play View -->
+      <div id="play-view" class="lobby-view active">
+        <div class="play-actions">
+          <button class="btn btn-large btn-primary" id="create-room-btn">
+            <span class="btn-icon">➕</span>
+            Create Room
+          </button>
+          <div class="join-room">
+            <input type="text" id="room-code-input" placeholder="Room Code" maxlength="4">
+            <button class="btn btn-secondary" id="join-room-btn">Join</button>
+          </div>
+        </div>
+
+        <div class="lobbies-section">
+          <h2>Open Rooms</h2>
+          <div class="lobbies-list" id="lobbies-list">
+            <div class="empty-state">No open rooms. Create one!</div>
+          </div>
+        </div>
+
+        <div class="online-section">
+          <h3>Online Players <span class="online-count" id="online-count">0</span></h3>
+          <div class="online-list" id="online-list"></div>
+        </div>
+      </div>
+
+      <!-- Leaderboard View -->
+      <div id="leaderboard-view" class="lobby-view">
+        <div class="leaderboard-controls">
+          <select id="leaderboard-sort">
+            <option value="total_score">Total Score</option>
+            <option value="games_won">Games Won</option>
+            <option value="mahjong_count">Mahjong Count</option>
+            <option value="win_streak">Best Streak</option>
+          </select>
+        </div>
+        <div class="leaderboard-table" id="leaderboard-table"></div>
+      </div>
+
+      <!-- History View -->
+      <div id="history-view" class="lobby-view">
+        <div class="history-list" id="history-list"></div>
+      </div>
+
+      <!-- Profile View -->
+      <div id="profile-view" class="lobby-view">
+        <div class="profile-card" id="profile-card"></div>
+      </div>
+    </div>
+
+    <!-- Waiting Room -->
+    <div id="waiting-screen" class="screen">
+      <div class="waiting-container">
+        <div class="room-header">
+          <h2>Room: <span id="waiting-room-code"></span></h2>
+          <button class="btn btn-outline" id="leave-room-btn">Leave</button>
+        </div>
+
+        <div class="seats-grid" id="seats-grid">
+          <div class="seat" data-wind="east">
+            <div class="seat-wind">東 East</div>
+            <div class="seat-player empty">Waiting...</div>
+          </div>
+          <div class="seat" data-wind="south">
+            <div class="seat-wind">南 South</div>
+            <div class="seat-player empty">Waiting...</div>
+          </div>
+          <div class="seat" data-wind="west">
+            <div class="seat-wind">西 West</div>
+            <div class="seat-player empty">Waiting...</div>
+          </div>
+          <div class="seat" data-wind="north">
+            <div class="seat-wind">北 North</div>
+            <div class="seat-player empty">Waiting...</div>
+          </div>
+        </div>
+
+        <button class="btn btn-large btn-primary" id="start-game-btn" disabled>
+          Waiting for players...
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+      <div class="game-container">
+        <!-- Top player (opponent) -->
+        <div class="player-area top" id="player-top">
+          <div class="player-info">
+            <span class="player-name"></span>
+            <span class="player-wind"></span>
+          </div>
+          <div class="player-hand hidden-hand"></div>
+          <div class="player-exposed"></div>
+        </div>
+
+        <!-- Left player -->
+        <div class="player-area left" id="player-left">
+          <div class="player-info">
+            <span class="player-name"></span>
+            <span class="player-wind"></span>
+          </div>
+          <div class="player-hand hidden-hand vertical"></div>
+          <div class="player-exposed vertical"></div>
+        </div>
+
+        <!-- Right player -->
+        <div class="player-area right" id="player-right">
+          <div class="player-info">
+            <span class="player-name"></span>
+            <span class="player-wind"></span>
+          </div>
+          <div class="player-hand hidden-hand vertical"></div>
+          <div class="player-exposed vertical"></div>
+        </div>
+
+        <!-- Center area -->
+        <div class="game-center">
+          <div class="game-info">
+            <div class="round-wind">東</div>
+            <div class="wall-count">Tiles: <span id="wall-count">0</span></div>
+          </div>
+          <div class="discard-area" id="discard-area"></div>
+          <div class="last-discard" id="last-discard"></div>
+        </div>
+
+        <!-- Current player (bottom) -->
+        <div class="player-area bottom" id="player-bottom">
+          <div class="my-flowers" id="my-flowers"></div>
+          <div class="my-exposed" id="my-exposed"></div>
+          <div class="my-hand" id="my-hand"></div>
+          <div class="player-info">
+            <span class="player-name" id="my-name"></span>
+            <span class="player-wind" id="my-wind"></span>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-bar" id="action-bar">
+          <button class="action-btn" id="btn-chow" disabled>Chow 吃</button>
+          <button class="action-btn" id="btn-pung" disabled>Pung 碰</button>
+          <button class="action-btn" id="btn-kong" disabled>Kong 杠</button>
+          <button class="action-btn mahjong" id="btn-mahjong" disabled>Mahjong! 胡</button>
+          <button class="action-btn skip" id="btn-skip">Skip</button>
+        </div>
+
+        <!-- Turn indicator -->
+        <div class="turn-indicator" id="turn-indicator">Your Turn</div>
+      </div>
+
+      <!-- Chat -->
+      <div class="game-chat" id="game-chat">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input">
+          <input type="text" id="chat-input" placeholder="Type message...">
+          <button id="chat-send">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="win-modal" class="modal">
+      <div class="modal-content win-content">
+        <div class="win-header">
+          <h2>🎉 <span id="winner-name"></span> Wins!</h2>
+          <div class="win-score">Score: <span id="win-score"></span></div>
+        </div>
+        <div class="win-hand" id="win-hand"></div>
+        <button class="btn btn-primary" id="back-to-lobby">Back to Lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
