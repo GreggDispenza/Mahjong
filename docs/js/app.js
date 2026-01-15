@@ -1,6 +1,6 @@
 // Mahjong Online - Client Application
-const API_URL = '';
-let socket = null;
+const API_URL = "https://mahjong-owel.onrender.com";
+let socket = io(API_URL, { transports: ["websocket", "polling"] });
 let currentUser = null;
 let currentRoom = null;
 let gameState = null;
