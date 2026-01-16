@@ -1,275 +1,236 @@
-// Database module using LowDB (JSON file-based)
-import { Low } from 'lowdb';
-import { JSONFile } from 'lowdb/node';
+// Database module using Supabase
+import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lexgvescxcmzwfympppf.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxleGd2ZXNjeGNtendmeW1wcHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg1NDQ2NTIsImV4cCI6MjA4NDEyMDY1Mn0.9AvkykuUSlesYmS458CaOImMpBid-i3iMrmGSdJYmAI';
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const DB_PATH = path.join(DATA_DIR, 'mahjong.json');
-
-const defaultData = {
-  users: [],
-  playerStats: [],
-  games: [],
-  gameParticipants: [],
-  friends: []
-};
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 class MahjongDB {
-  constructor() {
-    this.db = null;
-    this.ready = false;
-  }
-
   async init() {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    console.log('✅ Supabase database connected');
+    return true;
+  }
+
+  // User methods
+  async createUser(username, password, displayName) {
+    try {
+      const passwordHash = await bcrypt.hash(password, 10);
+      
+      const { data: user, error } = await supabase
+        .from('users')
+        .insert({ username, password_hash: passwordHash, display_name: displayName })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') return { success: false, error: 'Username already exists' };
+        throw error;
+      }
+
+      // Create stats record
+      await supabase.from('player_stats').insert({ user_id: user.id });
+
+      return { success: true, userId: user.id };
+    } catch (err) {
+      console.error('createUser error:', err);
+      return { success: false, error: 'Registration failed' };
     }
-
-    const adapter = new JSONFile(DB_PATH);
-    this.db = new Low(adapter, defaultData);
-    await this.db.read();
-    this.db.data = { ...defaultData, ...this.db.data };
-    await this.db.write();
-    this.ready = true;
-    console.log('✅ Database initialized');
-  }
-
-  generateId(collection) {
-    const items = this.db.data[collection] || [];
-    return items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 1;
-  }
-
-  async createUser(username, password, displayName, email = null) {
-    const passwordHash = bcrypt.hashSync(password, 10);
-
-    const existing = this.db.data.users.find(
-      u => u.username.toLowerCase() === username.toLowerCase()
-    );
-    if (existing) return { success: false, error: 'Username already taken' };
-
-    const userId = this.generateId('users');
-    this.db.data.users.push({
-      id: userId,
-      username: username.toLowerCase(),
-      email,
-      passwordHash,
-      displayName,
-      avatar: 'default',
-      createdAt: new Date().toISOString(),
-      lastLogin: null,
-      isOnline: false
-    });
-
-    this.db.data.playerStats.push({
-      id: userId,
-      userId: userId,
-      gamesPlayed: 0,
-      gamesWon: 0,
-      totalScore: 0,
-      highestScore: 0,
-      mahjongCount: 0,
-      winStreak: 0,
-      bestStreak: 0
-    });
-
-    await this.db.write();
-    return { success: true, userId };
   }
 
   async authenticateUser(username, password) {
-    const user = this.db.data.users.find(
-      u => u.username.toLowerCase() === username.toLowerCase()
-    );
-    if (!user) return { success: false, error: 'User not found' };
-    if (!bcrypt.compareSync(password, user.passwordHash)) {
-      return { success: false, error: 'Invalid password' };
+    try {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .single();
+
+      if (error || !user) return { success: false, error: 'User not found' };
+
+      const valid = await bcrypt.compare(password, user.password_hash);
+      if (!valid) return { success: false, error: 'Invalid password' };
+
+      return {
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          displayName: user.display_name,
+          avatar: user.avatar
+        }
+      };
+    } catch (err) {
+      console.error('authenticateUser error:', err);
+      return { success: false, error: 'Login failed' };
     }
-
-    user.lastLogin = new Date().toISOString();
-    await this.db.write();
-
-    return {
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        avatar: user.avatar
-      }
-    };
   }
 
-  getUserById(userId) {
-    const user = this.db.data.users.find(u => u.id === userId);
-    if (!user) return null;
+  async getUserById(id) {
+    const { data } = await supabase
+      .from('users')
+      .select('id, username, display_name, avatar, created_at')
+      .eq('id', id)
+      .single();
+    
+    if (!data) return null;
     return {
-      id: user.id,
-      username: user.username,
-      display_name: user.displayName,
-      avatar: user.avatar,
-      created_at: user.createdAt,
-      last_login: user.lastLogin,
-      is_online: user.isOnline
+      id: data.id,
+      username: data.username,
+      displayName: data.display_name,
+      avatar: data.avatar,
+      createdAt: data.created_at
     };
   }
 
   async setUserOnline(userId, isOnline) {
-    const user = this.db.data.users.find(u => u.id === userId);
-    if (user) {
-      user.isOnline = isOnline;
-      await this.db.write();
-    }
+    await supabase
+      .from('users')
+      .update({ is_online: isOnline })
+      .eq('id', userId);
   }
 
-  async updateProfile(userId, updates) {
-    const user = this.db.data.users.find(u => u.id === userId);
-    if (!user) return { success: false, error: 'User not found' };
-    if (updates.display_name) user.displayName = updates.display_name;
-    if (updates.avatar) user.avatar = updates.avatar;
-    await this.db.write();
-    return { success: true };
+  async getOnlinePlayers() {
+    const { data } = await supabase
+      .from('users')
+      .select('id, display_name, avatar')
+      .eq('is_online', true);
+    
+    return (data || []).map(u => ({
+      id: u.id,
+      displayName: u.display_name,
+      avatar: u.avatar
+    }));
   }
 
-  getPlayerStats(userId) {
-    const stats = this.db.data.playerStats.find(s => s.userId === userId);
-    const user = this.db.data.users.find(u => u.id === userId);
-    if (!stats || !user) return null;
-
+  // Stats methods
+  async getPlayerStats(userId) {
+    const { data } = await supabase
+      .from('player_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (!data) return null;
     return {
-      user_id: stats.userId,
-      display_name: user.displayName,
-      avatar: user.avatar,
-      games_played: stats.gamesPlayed,
-      games_won: stats.gamesWon,
-      total_score: stats.totalScore,
-      highest_score: stats.highestScore,
-      mahjong_count: stats.mahjongCount,
-      win_streak: stats.winStreak,
-      best_streak: stats.bestStreak
+      gamesPlayed: data.games_played,
+      gamesWon: data.games_won,
+      totalScore: data.total_score,
+      highestScore: data.highest_score,
+      winStreak: data.win_streak,
+      currentStreak: data.current_streak
     };
   }
 
   async updatePlayerStats(userId, won, score, isMahjong) {
-    const stats = this.db.data.playerStats.find(s => s.userId === userId);
+    const stats = await this.getPlayerStats(userId);
     if (!stats) return;
 
-    stats.gamesPlayed += 1;
-    if (won) stats.gamesWon += 1;
-    stats.totalScore += score;
-    stats.highestScore = Math.max(stats.highestScore, score);
-    if (isMahjong) stats.mahjongCount += 1;
-    stats.winStreak = won ? stats.winStreak + 1 : 0;
-    stats.bestStreak = Math.max(stats.bestStreak, stats.winStreak);
-
-    await this.db.write();
-  }
-
-  getLeaderboard(limit = 20, sortBy = 'total_score') {
-    const sortMap = {
-      'total_score': 'totalScore',
-      'games_won': 'gamesWon',
-      'mahjong_count': 'mahjongCount',
-      'win_streak': 'bestStreak'
+    const updates = {
+      games_played: stats.gamesPlayed + 1,
+      total_score: stats.totalScore + score,
+      highest_score: Math.max(stats.highestScore, score)
     };
-    const field = sortMap[sortBy] || 'totalScore';
 
-    return this.db.data.playerStats
-      .filter(s => s.gamesPlayed > 0)
-      .map(s => {
-        const user = this.db.data.users.find(u => u.id === s.userId);
-        if (!user) return null;
-        return {
-          id: user.id,
-          username: user.username,
-          display_name: user.displayName,
-          avatar: user.avatar,
-          is_online: user.isOnline,
-          games_played: s.gamesPlayed,
-          games_won: s.gamesWon,
-          total_score: s.totalScore,
-          highest_score: s.highestScore,
-          mahjong_count: s.mahjongCount,
-          best_streak: s.bestStreak,
-          win_rate: s.gamesPlayed > 0 ? Math.round((s.gamesWon / s.gamesPlayed) * 1000) / 10 : 0
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b[field.replace(/([A-Z])/g, '_$1').toLowerCase()] - a[field.replace(/([A-Z])/g, '_$1').toLowerCase()])
-      .slice(0, limit);
+    if (won) {
+      updates.games_won = stats.gamesWon + 1;
+      updates.current_streak = stats.currentStreak + 1;
+      updates.win_streak = Math.max(stats.winStreak, updates.current_streak);
+    } else {
+      updates.current_streak = 0;
+    }
+
+    await supabase
+      .from('player_stats')
+      .update(updates)
+      .eq('user_id', userId);
   }
 
+  // Leaderboard
+  async getLeaderboard(limit = 50, sortBy = 'total_score') {
+    const column = {
+      'total_score': 'total_score',
+      'games_won': 'games_won',
+      'win_streak': 'win_streak',
+      'games_played': 'games_played'
+    }[sortBy] || 'total_score';
+
+    const { data } = await supabase
+      .from('player_stats')
+      .select('user_id, games_played, games_won, total_score, win_streak')
+      .order(column, { ascending: false })
+      .limit(limit);
+
+    if (!data || data.length === 0) return [];
+
+    // Get user details
+    const userIds = data.map(s => s.user_id);
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, display_name, avatar')
+      .in('id', userIds);
+
+    const userMap = {};
+    (users || []).forEach(u => { userMap[u.id] = u; });
+
+    return data.map(s => ({
+      user_id: s.user_id,
+      display_name: userMap[s.user_id]?.display_name || 'Unknown',
+      avatar: userMap[s.user_id]?.avatar || 'default',
+      games_played: s.games_played,
+      games_won: s.games_won,
+      total_score: s.total_score,
+      win_streak: s.win_streak
+    }));
+  }
+
+  // Game methods
   async createGame(roomCode) {
-    const gameId = this.generateId('games');
-    this.db.data.games.push({
-      id: gameId,
-      roomCode,
-      startedAt: new Date().toISOString(),
-      endedAt: null,
-      winnerId: null
-    });
-    await this.db.write();
-    return gameId;
+    const { data, error } = await supabase
+      .from('games')
+      .insert({ room_code: roomCode })
+      .select()
+      .single();
+    
+    return data?.id || null;
   }
 
   async endGame(gameId, winnerId) {
-    const game = this.db.data.games.find(g => g.id === gameId);
-    if (game) {
-      game.endedAt = new Date().toISOString();
-      game.winnerId = winnerId;
-      await this.db.write();
-    }
+    await supabase
+      .from('games')
+      .update({ ended_at: new Date().toISOString(), winner_id: winnerId, status: 'finished' })
+      .eq('id', gameId);
   }
 
-  async addGameParticipant(gameId, oderId, seatWind, finalScore, isWinner) {
-    this.db.data.gameParticipants.push({
-      id: this.generateId('gameParticipants'),
-      gameId,
-      oderId,
-      seatWind,
-      finalScore,
-      isWinner
-    });
-    await this.db.write();
+  async addGameParticipant(gameId, userId, seatWind, score, isWinner) {
+    await supabase
+      .from('game_participants')
+      .insert({ game_id: gameId, user_id: userId, seat_wind: seatWind, final_score: score, is_winner: isWinner });
   }
 
-  getPlayerHistory(userId, limit = 20) {
-    return this.db.data.gameParticipants
-      .filter(p => p.oderId === userId)
-      .map(p => {
-        const game = this.db.data.games.find(g => g.id === p.gameId);
-        const winner = game?.winnerId ? this.db.data.users.find(u => u.id === game.winnerId) : null;
-        return {
-          room_code: game?.roomCode,
-          started_at: game?.startedAt,
-          ended_at: game?.endedAt,
-          seat_wind: p.seatWind,
-          final_score: p.finalScore,
-          is_winner: p.isWinner,
-          winner_name: winner?.displayName
-        };
-      })
-      .reverse()
-      .slice(0, limit);
+  async getPlayerHistory(userId, limit = 50) {
+    const { data } = await supabase
+      .from('game_participants')
+      .select('game_id, seat_wind, final_score, is_winner, games(room_code, started_at, ended_at)')
+      .eq('user_id', userId)
+      .order('game_id', { ascending: false })
+      .limit(limit);
+
+    return (data || []).map(p => ({
+      gameId: p.game_id,
+      roomCode: p.games?.room_code,
+      seatWind: p.seat_wind,
+      score: p.final_score,
+      isWinner: p.is_winner,
+      startedAt: p.games?.started_at,
+      endedAt: p.games?.ended_at
+    }));
   }
 
-  getOnlinePlayers() {
-    return this.db.data.users
-      .filter(u => u.isOnline)
-      .map(u => ({
-        id: u.id,
-        username: u.username,
-        display_name: u.displayName,
-        avatar: u.avatar
-      }));
+  close() {
+    // Supabase client doesn't need explicit close
   }
-
-  close() {}
 }
 
 export default MahjongDB;
