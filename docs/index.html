@@ -78,6 +78,7 @@
     .seat .name{font-size:16px;font-weight:500;color:#333}
     .seat .name.empty{color:#999}
     .wait-box .btn{margin-top:10px;width:100%}
+    .btn-ai{background:linear-gradient(135deg,#4a90d9,#357abd);color:#fff;border:none}
     
     /* Game */
     #game{background:#2d5a2d;position:relative}
@@ -259,6 +260,7 @@
         <h2>房間 Room: <span id="room-code">XXXX</span></h2>
         <div id="seats" class="seats"></div>
         <button id="start-btn" class="btn btn-primary" onclick="startGame()" disabled>等待玩家 Waiting...</button>
+        <button id="ai-btn" class="btn btn-ai" onclick="startWithAI()">🤖 與電腦對戰 Play with AI</button>
         <button class="btn btn-small" onclick="leaveRoom()">離開 Leave</button>
       </div>
     </div>
@@ -425,6 +427,7 @@
 
     function leaveRoom(){socket.emit('leaveRoom');currentRoom=null;showLobby()}
     function startGame(){socket.emit('startGame',r=>{if(!r.success)alert(r.error||'Failed')})}
+    function startWithAI(){socket.emit('startGame',r=>{if(!r.success)alert(r.error||'Failed')})}
 
     function renderGame(){
       if(!gameState)return;
