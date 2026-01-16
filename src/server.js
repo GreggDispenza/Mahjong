@@ -281,19 +281,159 @@ io.on('connection', (socket) => {
     const game = games.get(currentRoom);
     if (!game) return callback({ success: false, error: 'Game not found' });
 
+    // Add AI players if needed
+    if (game.playerOrder.length < 4) {
+      game.addAIPlayers();
+      io.to(currentRoom).emit('playersUpdated', { players: game.getPlayersInfo() });
+    }
+
     const result = game.startGame();
     if (result.success) {
       game.gameId = db.createGame(currentRoom);
       for (const pid of game.playerOrder) {
-        io.to(pid).emit('gameStarted', game.getStateForPlayer(pid));
+        if (!game.aiPlayers.has(pid)) {
+          io.to(pid).emit('gameStarted', game.getStateForPlayer(pid));
+        }
       }
       io.emit('lobbyRemoved', { roomCode: currentRoom });
       callback({ success: true });
-      console.log(`🎲 Game started: ${currentRoom}`);
+      console.log(`🎲 Game started: ${currentRoom} (AI players: ${game.aiPlayers.size})`);
+
+      // If first player is AI, start AI turn
+      if (game.isCurrentPlayerAI()) {
+        setTimeout(() => processAITurn(currentRoom), 1500);
+      }
     } else {
       callback(result);
     }
   });
+
+  // AI Turn Processing
+  function processAITurn(roomCode) {
+    const game = games.get(roomCode);
+    if (!game || game.phase !== 'playing') return;
+
+    const currentPlayer = game.getCurrentPlayer();
+    if (!game.aiPlayers.has(currentPlayer)) return;
+
+    // Check if AI can win
+    if (game.isWinningHand(game.players[currentPlayer].hand, game.players[currentPlayer].exposed)) {
+      const result = game.declareMahjong(currentPlayer, false);
+      if (result.success) {
+        const aiPlayer = game.players[currentPlayer];
+        io.to(roomCode).emit('gameWon', {
+          winnerId: aiPlayer.oderId,
+          winnerName: aiPlayer.displayName,
+          score: result.score,
+          hand: result.hand,
+          exposed: result.exposed
+        });
+        return;
+      }
+    }
+
+    // AI discards
+    const tileId = game.aiSelectDiscard(currentPlayer);
+    if (tileId !== null) {
+      const discardResult = game.discard(currentPlayer, tileId);
+      if (discardResult.success) {
+        io.to(roomCode).emit('tileDiscarded', { oderId: game.players[currentPlayer].oderId, tile: discardResult.tile });
+        for (const pid of game.playerOrder) {
+          if (!game.aiPlayers.has(pid)) {
+            io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
+          }
+        }
+
+        // Wait for human claims, then process AI claims or next turn
+        setTimeout(() => processAfterDiscard(roomCode), 2000);
+      }
+    }
+  }
+
+  function processAfterDiscard(roomCode) {
+    const game = games.get(roomCode);
+    if (!game || game.phase !== 'playing' || !game.lastDiscard) {
+      // Discard was claimed by human, do nothing
+      return;
+    }
+
+    // Check AI claims (priority: mahjong > kong > pung > chow)
+    for (const aiId of game.aiPlayers) {
+      if (game.aiShouldClaim(aiId, 'mahjong')) {
+        const result = game.declareMahjong(aiId, true);
+        if (result.success) {
+          const aiPlayer = game.players[aiId];
+          io.to(roomCode).emit('gameWon', {
+            winnerId: aiPlayer.oderId,
+            winnerName: aiPlayer.displayName,
+            score: result.score,
+            hand: result.hand,
+            exposed: result.exposed
+          });
+          return;
+        }
+      }
+    }
+
+    for (const aiId of game.aiPlayers) {
+      if (game.aiShouldClaim(aiId, 'kong')) {
+        const result = game.claimKong(aiId);
+        if (result.success) {
+          io.to(roomCode).emit('meldClaimed', { oderId: game.players[aiId].oderId, type: 'kong', meld: result.meld });
+          broadcastState(roomCode, game);
+          setTimeout(() => processAITurn(roomCode), 1500);
+          return;
+        }
+      }
+    }
+
+    for (const aiId of game.aiPlayers) {
+      if (game.aiShouldClaim(aiId, 'pung')) {
+        const result = game.claimPung(aiId);
+        if (result.success) {
+          io.to(roomCode).emit('meldClaimed', { oderId: game.players[aiId].oderId, type: 'pung', meld: result.meld });
+          broadcastState(roomCode, game);
+          setTimeout(() => processAITurn(roomCode), 1500);
+          return;
+        }
+      }
+    }
+
+    // Check chow for next player if AI
+    const nextPlayer = game.playerOrder[(game.currentTurn + 1) % 4];
+    if (game.aiPlayers.has(nextPlayer) && game.aiShouldClaim(nextPlayer, 'chow')) {
+      const chowTiles = game.getAIChowTiles(nextPlayer);
+      if (chowTiles) {
+        const result = game.claimChow(nextPlayer, chowTiles);
+        if (result.success) {
+          io.to(roomCode).emit('meldClaimed', { oderId: game.players[nextPlayer].oderId, type: 'chow', meld: result.meld });
+          broadcastState(roomCode, game);
+          setTimeout(() => processAITurn(roomCode), 1500);
+          return;
+        }
+      }
+    }
+
+    // No claims, next turn
+    const nextResult = game.nextTurn();
+    if (nextResult.drawn) {
+      io.to(roomCode).emit('gameDraw', { reason: 'Wall exhausted' });
+      game.phase = 'ended';
+    } else {
+      broadcastState(roomCode, game);
+      if (nextResult.isAI) {
+        setTimeout(() => processAITurn(roomCode), 1500);
+      }
+    }
+  }
+
+  function broadcastState(roomCode, game) {
+    for (const pid of game.playerOrder) {
+      if (!game.aiPlayers.has(pid)) {
+        io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
+      }
+    }
+  }
 
   socket.on('discard', (tileId, callback) => {
     if (!currentRoom) return callback({ success: false, error: 'Not in a room' });
@@ -303,24 +443,11 @@ io.on('connection', (socket) => {
     const result = game.discard(socket.id, tileId);
     if (result.success) {
       io.to(currentRoom).emit('tileDiscarded', { oderId: currentUser.id, tile: result.tile });
-      for (const pid of game.playerOrder) {
-        io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
-      }
+      broadcastState(currentRoom, game);
       callback({ success: true });
 
-      setTimeout(() => {
-        if (game.lastDiscard && game.lastDiscard.id === result.tile.id) {
-          const nextResult = game.nextTurn();
-          if (nextResult.drawn) {
-            io.to(currentRoom).emit('gameDraw', { reason: 'Wall exhausted' });
-            game.phase = 'ended';
-          } else {
-            for (const pid of game.playerOrder) {
-              io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
-            }
-          }
-        }
-      }, 5000);
+      // Wait for claims, then process AI or next turn
+      setTimeout(() => processAfterDiscard(currentRoom), 3000);
     } else {
       callback(result);
     }
@@ -334,9 +461,7 @@ io.on('connection', (socket) => {
     const result = game.claimPung(socket.id);
     if (result.success) {
       io.to(currentRoom).emit('meldClaimed', { oderId: currentUser.id, type: 'pung', meld: result.meld });
-      for (const pid of game.playerOrder) {
-        io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
-      }
+      broadcastState(currentRoom, game);
     }
     callback(result);
   });
@@ -349,9 +474,7 @@ io.on('connection', (socket) => {
     const result = game.claimKong(socket.id);
     if (result.success) {
       io.to(currentRoom).emit('meldClaimed', { oderId: currentUser.id, type: 'kong', meld: result.meld });
-      for (const pid of game.playerOrder) {
-        io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
-      }
+      broadcastState(currentRoom, game);
     }
     callback(result);
   });
@@ -364,9 +487,7 @@ io.on('connection', (socket) => {
     const result = game.claimChow(socket.id, tileIds);
     if (result.success) {
       io.to(currentRoom).emit('meldClaimed', { oderId: currentUser.id, type: 'chow', meld: result.meld });
-      for (const pid of game.playerOrder) {
-        io.to(pid).emit('stateUpdate', game.getStateForPlayer(pid));
-      }
+      broadcastState(currentRoom, game);
     }
     callback(result);
   });
