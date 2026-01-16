@@ -15,6 +15,10 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'mahjong-secret-key-2024';
+const DEEPSEEK_KEY = process.env.DEEPSEEK_KEY || 'sk-3f7cdbf2f0f744af8c1157cf2b8dbbff';
+
+// AI Chat state
+const aiChatCooldown = new Map(); // roomCode -> lastResponseTime
 
 // Initialize
 const app = express();
@@ -160,6 +164,82 @@ app.get('/api/debug', (req, res) => {
   };
   res.json(info);
 });
+
+// DeepSeek AI Chat
+async function getAIResponse(roomCode, chatHistory, game) {
+  // Cooldown: 1 response per 15 seconds per room
+  const now = Date.now();
+  const lastResponse = aiChatCooldown.get(roomCode) || 0;
+  if (now - lastResponse < 15000) return null;
+  
+  // 40% chance to respond (save tokens)
+  if (Math.random() > 0.4) return null;
+
+  const aiNames = Array.from(game.aiPlayers).map(id => game.players[id]?.displayName).filter(Boolean);
+  if (aiNames.length === 0) return null;
+
+  const aiName = aiNames[Math.floor(Math.random() * aiNames.length)];
+  const recentChat = chatHistory.slice(-5).map(m => `${m.name}: ${m.text}`).join('\n');
+
+  const prompt = `You are ${aiName}, an AI mahjong player. You're playing mahjong with humans.
+
+Recent chat:
+${recentChat}
+
+Respond naturally in 1 short sentence. Match the language used (English/Chinese/mixed). Be playful - you can trash talk, joke, encourage, or react to what was said. Keep it fun and brief. Just the message, no name prefix.`;
+
+  try {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 60,
+        temperature: 0.9
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content?.trim();
+    
+    if (reply) {
+      aiChatCooldown.set(roomCode, now);
+      return { name: aiName, text: reply };
+    }
+  } catch (err) {
+    console.error('DeepSeek error:', err.message);
+  }
+  return null;
+}
+
+// Chat history storage
+const roomChatHistory = new Map(); // roomCode -> [{name, text}]
+
+// AI game event reactions (simpler, no API call needed)
+function getAIReaction(eventType, aiName) {
+  const reactions = {
+    pung: ['碰！', 'Pung!', '碰碰碰~', '哈哈碰到了', 'Got it! 碰!', '這張我要了'],
+    kong: ['槓！大四喜！', 'Kong! 💪', '槓！爽！', '四張都我的', 'Kong kong kong~'],
+    chow: ['吃！', 'Chow~', '謝謝餵牌', '吃吃吃', 'Yum yum 吃!'],
+    discard: ['出牌~', '打這張', '不要了', 'Your turn~', '下一個'],
+    win: ['胡了！！！', 'Mahjong! 🎉', '我贏了哈哈', 'GG 胡牌！', '謝謝各位～']
+  };
+  
+  // 25% chance to react
+  if (Math.random() > 0.25) return null;
+  
+  const options = reactions[eventType] || [];
+  if (options.length === 0) return null;
+  
+  return {
+    name: aiName,
+    text: options[Math.floor(Math.random() * options.length)]
+  };
+}
 
 // ==================== SOCKET.IO ====================
 
@@ -379,7 +459,17 @@ io.on('connection', (socket) => {
       if (game.aiShouldClaim(aiId, 'kong')) {
         const result = game.claimKong(aiId);
         if (result.success) {
-          io.to(roomCode).emit('meldClaimed', { oderId: game.players[aiId].oderId, type: 'kong', meld: result.meld });
+          const aiPlayer = game.players[aiId];
+          io.to(roomCode).emit('meldClaimed', { oderId: aiPlayer.oderId, type: 'kong', meld: result.meld });
+          
+          // AI reaction
+          const reaction = getAIReaction('kong', aiPlayer.displayName);
+          if (reaction) {
+            setTimeout(() => {
+              io.to(roomCode).emit('chat', { displayName: reaction.name, message: reaction.text, timestamp: Date.now(), isAI: true });
+            }, 500);
+          }
+          
           broadcastState(roomCode, game);
           setTimeout(() => processAITurn(roomCode), 1500);
           return;
@@ -391,7 +481,17 @@ io.on('connection', (socket) => {
       if (game.aiShouldClaim(aiId, 'pung')) {
         const result = game.claimPung(aiId);
         if (result.success) {
-          io.to(roomCode).emit('meldClaimed', { oderId: game.players[aiId].oderId, type: 'pung', meld: result.meld });
+          const aiPlayer = game.players[aiId];
+          io.to(roomCode).emit('meldClaimed', { oderId: aiPlayer.oderId, type: 'pung', meld: result.meld });
+          
+          // AI reaction
+          const reaction = getAIReaction('pung', aiPlayer.displayName);
+          if (reaction) {
+            setTimeout(() => {
+              io.to(roomCode).emit('chat', { displayName: reaction.name, message: reaction.text, timestamp: Date.now(), isAI: true });
+            }, 500);
+          }
+          
           broadcastState(roomCode, game);
           setTimeout(() => processAITurn(roomCode), 1500);
           return;
@@ -521,13 +621,39 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('chat', (message) => {
+  socket.on('chat', async (message) => {
     if (currentRoom && currentUser) {
+      const msg = message.substring(0, 200);
+      
+      // Emit human message
       io.to(currentRoom).emit('chat', {
         displayName: currentUser.displayName,
-        message: message.substring(0, 200),
+        message: msg,
         timestamp: Date.now()
       });
+
+      // Store chat history
+      if (!roomChatHistory.has(currentRoom)) {
+        roomChatHistory.set(currentRoom, []);
+      }
+      const history = roomChatHistory.get(currentRoom);
+      history.push({ name: currentUser.displayName, text: msg });
+      if (history.length > 20) history.shift(); // Keep last 20
+
+      // Try AI response
+      const game = games.get(currentRoom);
+      if (game && game.aiPlayers.size > 0) {
+        const aiReply = await getAIResponse(currentRoom, history, game);
+        if (aiReply) {
+          history.push(aiReply);
+          io.to(currentRoom).emit('chat', {
+            displayName: aiReply.name,
+            message: aiReply.text,
+            timestamp: Date.now(),
+            isAI: true
+          });
+        }
+      }
     }
   });
 
