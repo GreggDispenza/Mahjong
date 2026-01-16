@@ -413,7 +413,7 @@
     function joinRoom(){const c=$('join-code').value.toUpperCase();if(c)joinRoomByCode(c)}
     function joinRoomByCode(code){socket.emit('joinRoom',code,r=>{if(r.success){currentRoom=r.roomCode;showWaiting(r)}else alert(r.error||'Failed')})}
 
-    function showWaiting(r){show('waiting');$('room-code').textContent=r.roomCode;updateSeats(r.players);$('start-btn').disabled=r.players.length<4;$('start-btn').textContent=r.players.length<4?`等待中 (${r.players.length}/4)`:'開始 Start Game!'}
+    function showWaiting(r){show('waiting');$('room-code').textContent=r.roomCode;updateSeats(r.players);$('start-btn').disabled=r.players.length<4;$('start-btn').textContent=r.players.length<4?`等待中 Waiting (${r.players.length}/4)`:'開始 Start Game!'}
 
     function updateSeats(players){
       const w=['east','south','west','north'],l=['東 East','南 South','西 West','北 North'];
