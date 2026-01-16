@@ -5,139 +5,192 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mahjong Online</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&family=Ma+Shan+Zheng&display=swap');
+    
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#fff;min-height:100vh}
+    body{font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f0e6;color:#2c2c2c;min-height:100vh}
     .screen{display:none;min-height:100vh}
     .screen.active{display:flex;flex-direction:column}
     
     /* Loading */
-    #loading{justify-content:center;align-items:center;background:#1a1a2e}
+    #loading{justify-content:center;align-items:center;background:linear-gradient(135deg,#f5f0e6 0%,#e8e0d0 100%)}
     .loader{text-align:center}
     .loader-tile{font-size:80px;animation:bounce 1s infinite}
     @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
-    .loader p{margin-top:20px;color:#888}
+    .loader p{margin-top:20px;color:#666;font-size:18px}
     
     /* Auth */
-    #auth{justify-content:center;align-items:center;padding:20px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)}
-    .auth-box{background:#16213e;border-radius:20px;padding:30px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,0.3)}
-    .auth-box h1{text-align:center;font-size:28px;margin-bottom:25px}
-    .auth-box h1 span{font-size:40px;display:block;margin-bottom:10px}
-    .tabs{display:flex;margin-bottom:20px;background:#1a1a2e;border-radius:10px;padding:4px}
-    .tabs button{flex:1;padding:12px;border:none;background:none;color:#888;font-size:15px;cursor:pointer;border-radius:8px;transition:all 0.3s}
-    .tabs button.active{background:#e94560;color:#fff}
+    #auth{justify-content:center;align-items:center;padding:20px;background:linear-gradient(135deg,#f5f0e6 0%,#e8e0d0 100%)}
+    .auth-box{background:#fff;border-radius:20px;padding:30px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,0.1);border:2px solid #d4c4a8}
+    .auth-box h1{text-align:center;font-size:28px;margin-bottom:25px;color:#8b0000}
+    .auth-box h1 span{font-size:48px;display:block;margin-bottom:10px}
+    .tabs{display:flex;margin-bottom:20px;background:#f5f0e6;border-radius:10px;padding:4px}
+    .tabs button{flex:1;padding:12px;border:none;background:none;color:#666;font-size:15px;cursor:pointer;border-radius:8px;transition:all 0.3s;font-family:inherit}
+    .tabs button.active{background:#8b0000;color:#fff}
     .form{display:none;flex-direction:column;gap:15px}
     .form.active{display:flex}
-    .form input{padding:15px;border:2px solid #2a2a4a;border-radius:10px;background:#1a1a2e;color:#fff;font-size:16px}
-    .form input:focus{outline:none;border-color:#e94560}
-    .form input::placeholder{color:#666}
-    .btn{padding:15px 25px;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s}
-    .btn-primary{background:linear-gradient(135deg,#e94560,#c73e54);color:#fff}
-    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(233,69,96,0.4)}
-    .error-msg{color:#e94560;font-size:14px;text-align:center;min-height:20px}
+    .form input{padding:15px;border:2px solid #d4c4a8;border-radius:10px;background:#faf8f5;color:#333;font-size:16px;font-family:inherit}
+    .form input:focus{outline:none;border-color:#8b0000}
+    .form input::placeholder{color:#999}
+    .btn{padding:15px 25px;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s;font-family:inherit}
+    .btn-primary{background:linear-gradient(135deg,#8b0000,#a52a2a);color:#fff}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(139,0,0,0.3)}
+    .error-msg{color:#8b0000;font-size:14px;text-align:center;min-height:20px}
     
     /* Lobby */
-    #lobby{background:#1a1a2e}
-    .header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#16213e;border-bottom:1px solid #2a2a4a}
-    .header .user{font-weight:600}
+    #lobby{background:#f5f0e6}
+    .header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#fff;border-bottom:2px solid #d4c4a8}
+    .header .user{font-weight:600;color:#333}
     .header .user span{margin-right:8px}
-    .btn-small{padding:8px 15px;font-size:14px;background:#2a2a4a;color:#fff;border:none;border-radius:8px;cursor:pointer}
+    .btn-small{padding:8px 15px;font-size:14px;background:#f5f0e6;color:#666;border:2px solid #d4c4a8;border-radius:8px;cursor:pointer;font-family:inherit}
+    .btn-small:hover{background:#e8e0d0}
     .lobby-body{padding:20px;max-width:500px;margin:0 auto;width:100%}
     .create-join{display:flex;flex-direction:column;gap:12px;margin-bottom:30px}
     .btn-large{padding:18px;font-size:18px;width:100%}
     .join-row{display:flex;gap:10px}
-    .join-row input{flex:1;padding:15px;font-size:20px;text-align:center;letter-spacing:8px;text-transform:uppercase;background:#16213e;border:2px solid #2a2a4a;border-radius:10px;color:#fff}
-    .join-row input:focus{outline:none;border-color:#f4d03f}
+    .join-row input{flex:1;padding:15px;font-size:20px;text-align:center;letter-spacing:8px;text-transform:uppercase;background:#fff;border:2px solid #d4c4a8;border-radius:10px;color:#333;font-family:inherit}
+    .join-row input:focus{outline:none;border-color:#8b0000}
     .join-row .btn{padding:15px 25px}
     .section{margin-bottom:25px}
-    .section h2{font-size:14px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+    .section h2{font-size:14px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
     .room-list{display:flex;flex-direction:column;gap:10px}
-    .room-card{display:flex;justify-content:space-between;align-items:center;padding:18px;background:#16213e;border-radius:12px;cursor:pointer;transition:all 0.3s;border:2px solid transparent}
-    .room-card:hover{border-color:#f4d03f;transform:translateX(5px)}
-    .room-card .code{font-size:22px;font-weight:700;color:#f4d03f;letter-spacing:3px}
-    .room-card .count{color:#888}
-    .empty{color:#666;text-align:center;padding:30px}
-    .lb-list{background:#16213e;border-radius:12px;overflow:hidden}
-    .lb-row{display:grid;grid-template-columns:40px 1fr 80px;padding:14px 18px;border-bottom:1px solid #2a2a4a}
+    .room-card{display:flex;justify-content:space-between;align-items:center;padding:18px;background:#fff;border-radius:12px;cursor:pointer;transition:all 0.3s;border:2px solid #d4c4a8}
+    .room-card:hover{border-color:#8b0000;transform:translateX(5px)}
+    .room-card .code{font-size:22px;font-weight:700;color:#8b0000;letter-spacing:3px}
+    .room-card .count{color:#666}
+    .empty{color:#999;text-align:center;padding:30px;background:#fff;border-radius:12px;border:2px solid #d4c4a8}
+    .lb-list{background:#fff;border-radius:12px;overflow:hidden;border:2px solid #d4c4a8}
+    .lb-row{display:grid;grid-template-columns:40px 1fr 80px;padding:14px 18px;border-bottom:1px solid #e8e0d0}
     .lb-row:last-child{border:none}
-    .lb-row .rank{color:#f4d03f;font-weight:700}
-    .lb-row .score{text-align:right;color:#888}
+    .lb-row .rank{color:#8b0000;font-weight:700}
+    .lb-row .score{text-align:right;color:#666}
     
     /* Waiting */
-    #waiting{justify-content:center;align-items:center;padding:20px;background:#1a1a2e}
-    .wait-box{background:#16213e;border-radius:20px;padding:30px;width:100%;max-width:420px;text-align:center}
-    .wait-box h2{font-size:24px;margin-bottom:25px}
-    .wait-box h2 span{color:#f4d03f;letter-spacing:4px}
+    #waiting{justify-content:center;align-items:center;padding:20px;background:#f5f0e6}
+    .wait-box{background:#fff;border-radius:20px;padding:30px;width:100%;max-width:420px;text-align:center;border:2px solid #d4c4a8;box-shadow:0 10px 40px rgba(0,0,0,0.1)}
+    .wait-box h2{font-size:24px;margin-bottom:25px;color:#333}
+    .wait-box h2 span{color:#8b0000;letter-spacing:4px}
     .seats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:25px}
-    .seat{padding:20px;background:#1a1a2e;border-radius:12px;border:2px solid #2a2a4a}
-    .seat.filled{border-color:#4ecca3}
-    .seat.me{border-color:#f4d03f}
-    .seat .wind{font-size:13px;color:#888;margin-bottom:5px}
-    .seat .name{font-size:16px;font-weight:500}
-    .seat .name.empty{color:#444}
+    .seat{padding:20px;background:#f5f0e6;border-radius:12px;border:2px solid #d4c4a8}
+    .seat.filled{border-color:#228b22;background:#f0fff0}
+    .seat.me{border-color:#8b0000;background:#fff5f5}
+    .seat .wind{font-size:13px;color:#666;margin-bottom:5px}
+    .seat .name{font-size:16px;font-weight:500;color:#333}
+    .seat .name.empty{color:#999}
     .wait-box .btn{margin-top:10px;width:100%}
     
     /* Game */
-    #game{background:#0d1117;position:relative}
-    .game-container{flex:1;position:relative;max-width:100%;overflow:hidden}
+    #game{background:#2d5a2d;position:relative}
+    .game-header{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:10px 15px;z-index:50}
+    .btn-leave,.btn-chat-toggle{padding:8px 14px;font-size:12px;background:rgba(255,255,255,0.9);border:none;border-radius:8px;cursor:pointer;font-family:inherit;color:#333;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+    .btn-leave:hover,.btn-chat-toggle:hover{background:#fff}
+    .btn-leave{color:#8b0000}
+    .game-container{flex:1;position:relative;max-width:100%;overflow:hidden;background:linear-gradient(135deg,#2d5a2d 0%,#1e4620 100%);padding-top:50px}
     .opp{position:absolute;display:flex;flex-direction:column;align-items:center}
     .opp.top{top:10px;left:50%;transform:translateX(-50%)}
     .opp.left{left:10px;top:50%;transform:translateY(-50%)}
     .opp.right{right:10px;top:50%;transform:translateY(-50%)}
-    .opp-name{font-size:12px;color:#888;margin-bottom:5px;background:#1a1a2e;padding:4px 10px;border-radius:10px}
+    .opp-name{font-size:12px;color:#fff;margin-bottom:5px;background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:10px}
     .opp-tiles{display:flex;gap:2px}
     .opp.left .opp-tiles,.opp.right .opp-tiles{flex-direction:column}
-    .back-tile{width:24px;height:34px;background:linear-gradient(135deg,#2d5a45,#1e3d2f);border-radius:4px;border:1px solid #3d7a5a}
+    .back-tile{width:24px;height:34px;background:linear-gradient(145deg,#1e88e5,#1565c0);border-radius:4px;border:1px solid #0d47a1;box-shadow:inset 0 0 10px rgba(255,255,255,0.2)}
     .opp.left .back-tile,.opp.right .back-tile{width:34px;height:24px}
     .opp-melds{display:flex;gap:6px;margin-top:6px}
     .center-area{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
     .game-info{display:flex;gap:20px;justify-content:center;align-items:center;margin-bottom:15px}
-    .game-info .wind{font-size:32px;color:#f4d03f}
-    .game-info .wall{color:#888;font-size:14px}
-    .discard-pile{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:220px;padding:15px;background:rgba(0,0,0,0.4);border-radius:12px;min-height:80px}
-    .discard-pile .tile{width:26px;height:36px;font-size:18px;cursor:default}
+    .game-info .wind{font-size:36px;color:#ffd700;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
+    .game-info .wall{color:#fff;font-size:14px;background:rgba(0,0,0,0.3);padding:5px 12px;border-radius:15px}
+    .discard-pile{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:240px;padding:15px;background:rgba(139,90,43,0.6);border-radius:12px;min-height:80px;border:2px solid rgba(139,90,43,0.8)}
+    .discard-pile .tile{width:28px;height:38px;font-size:20px;cursor:default}
     .discard-pile .tile:hover{transform:none}
     .last-discard{margin-top:15px}
-    .last-discard .tile{width:44px;height:58px;font-size:32px;border:2px solid #e94560;box-shadow:0 0 20px rgba(233,69,96,0.5);animation:pulse 1s infinite;cursor:default}
+    .last-discard .tile{width:48px;height:64px;font-size:36px;border:3px solid #ffd700;box-shadow:0 0 20px rgba(255,215,0,0.6);animation:pulse 1s infinite;cursor:default}
     .last-discard .tile:hover{transform:none}
-    @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(233,69,96,0.5)}50%{box-shadow:0 0 30px rgba(233,69,96,0.8)}}
-    .my-section{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;width:95%;max-width:550px}
+    @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.6)}50%{box-shadow:0 0 30px rgba(255,215,0,0.9)}}
+    .my-section{position:absolute;bottom:75px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;width:95%;max-width:580px}
     .my-melds{display:flex;gap:10px;margin-bottom:10px}
-    .meld{display:flex;gap:2px;background:rgba(0,0,0,0.3);padding:5px;border-radius:8px}
-    .meld .tile{width:30px;height:42px;font-size:22px;cursor:default}
+    .meld{display:flex;gap:2px;background:rgba(0,0,0,0.3);padding:6px;border-radius:8px}
+    .meld .tile{width:32px;height:44px;font-size:24px;cursor:default}
     .meld .tile:hover{transform:none}
-    .my-hand{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;padding:15px;background:rgba(0,0,0,0.4);border-radius:15px}
-    .my-info{margin-top:10px;font-size:14px;color:#888}
-    .tile{width:40px;height:54px;background:linear-gradient(145deg,#f5f0e6,#e8e3d5);border:2px solid #c9bda3;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;user-select:none}
-    .tile:hover{transform:translateY(-8px)}
-    .tile.selected{transform:translateY(-12px);border-color:#f4d03f;box-shadow:0 8px 25px rgba(244,208,63,0.4)}
-    .actions{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:8px;padding:12px;background:linear-gradient(to top,#0d1117 0%,transparent 100%)}
-    .actions .btn{padding:12px 18px;font-size:14px;background:#1a1a2e;border:1px solid #2a2a4a;color:#fff}
+    .my-hand{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;padding:15px;background:rgba(0,0,0,0.3);border-radius:15px}
+    .my-info{margin-top:10px;font-size:14px;color:#fff;background:rgba(0,0,0,0.3);padding:5px 15px;border-radius:10px}
+    
+    /* Tiles - Traditional Style */
+    .tile{
+      width:42px;height:58px;
+      background:linear-gradient(145deg,#fffff8,#f0ead6);
+      border:2px solid #b8a88a;
+      border-radius:6px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:32px;
+      cursor:pointer;
+      transition:transform 0.15s,box-shadow 0.15s;
+      user-select:none;
+      box-shadow:2px 2px 4px rgba(0,0,0,0.2),inset 0 0 20px rgba(255,255,255,0.5);
+      position:relative;
+    }
+    .tile:hover{transform:translateY(-8px);box-shadow:2px 6px 12px rgba(0,0,0,0.3)}
+    .tile.selected{transform:translateY(-12px);border-color:#ffd700;box-shadow:0 8px 25px rgba(255,215,0,0.5)}
+    
+    /* Action Buttons */
+    .actions{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:8px;padding:12px;background:linear-gradient(to top,rgba(30,70,32,0.95) 0%,transparent 100%)}
+    .actions .btn{
+      padding:12px 16px;font-size:14px;
+      background:linear-gradient(145deg,#fff,#f0ead6);
+      border:2px solid #b8a88a;color:#333;
+      font-family:'Ma Shan Zheng','Noto Sans SC',sans-serif;
+      display:flex;flex-direction:column;align-items:center;gap:2px;
+      min-width:65px;
+    }
+    .actions .btn .cn{font-size:18px;color:#8b0000}
+    .actions .btn .en{font-size:10px;color:#666}
     .actions .btn:disabled{opacity:0.4;cursor:not-allowed}
-    .actions .btn-win{background:#e94560;border-color:#e94560}
-    .actions .btn-skip{background:transparent;color:#888}
-    .turn-indicator{position:fixed;top:60px;left:50%;transform:translateX(-50%);padding:10px 25px;background:#f4d03f;color:#000;font-weight:700;border-radius:25px;opacity:0;transition:opacity 0.3s}
+    .actions .btn-win{background:linear-gradient(145deg,#ffe4e4,#ffd0d0);border-color:#8b0000}
+    .actions .btn-win .cn{color:#8b0000;font-size:20px}
+    .actions .btn-skip{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.3);color:#fff}
+    .actions .btn-skip .cn{color:#fff}
+    .actions .btn-skip .en{color:rgba(255,255,255,0.7)}
+    .turn-indicator{position:fixed;top:60px;left:50%;transform:translateX(-50%);padding:10px 25px;background:linear-gradient(135deg,#ffd700,#ffb300);color:#333;font-weight:700;border-radius:25px;opacity:0;transition:opacity 0.3s;box-shadow:0 4px 15px rgba(255,215,0,0.4);font-family:'Ma Shan Zheng',sans-serif;font-size:18px}
     .turn-indicator.show{opacity:1}
     
+    /* Chat Panel */
+    .chat-panel{position:fixed;right:-320px;top:50px;width:300px;height:calc(100vh - 120px);background:#fff;border-radius:12px 0 0 12px;box-shadow:-4px 0 20px rgba(0,0,0,0.3);transition:right 0.3s;z-index:60;display:flex;flex-direction:column}
+    .chat-panel.open{right:0}
+    .chat-header{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:#f5f0e6;border-radius:12px 0 0 0;border-bottom:1px solid #d4c4a8}
+    .chat-header span{font-weight:600;color:#333}
+    .chat-header button{background:none;border:none;font-size:18px;cursor:pointer;color:#666}
+    .chat-messages{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+    .chat-msg{padding:8px 12px;background:#f5f0e6;border-radius:10px;font-size:13px}
+    .chat-msg .name{font-weight:600;color:#8b0000;font-size:11px;margin-bottom:2px}
+    .chat-msg .text{color:#333}
+    .chat-msg .time{font-size:10px;color:#999;margin-top:2px}
+    .chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid #d4c4a8}
+    .chat-input input{flex:1;padding:10px;border:1px solid #d4c4a8;border-radius:8px;font-size:14px;font-family:inherit}
+    .chat-input input:focus{outline:none;border-color:#8b0000}
+    .chat-input button{padding:10px 15px;background:#8b0000;color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit}
+    
     /* Modal */
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;padding:20px;z-index:100}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;justify-content:center;align-items:center;padding:20px;z-index:100}
     .modal.active{display:flex}
-    .modal-content{background:#16213e;border-radius:20px;padding:35px;text-align:center;max-width:450px;width:100%}
-    .modal-content h2{font-size:26px;margin-bottom:10px}
-    .modal-content .score-big{font-size:48px;color:#f4d03f;font-weight:700;margin:15px 0}
-    .win-tiles{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin:20px 0;padding:15px;background:#1a1a2e;border-radius:12px}
-    .win-tiles .tile{width:34px;height:46px;font-size:24px;cursor:default}
+    .modal-content{background:#fff;border-radius:20px;padding:35px;text-align:center;max-width:450px;width:100%;border:3px solid #d4c4a8}
+    .modal-content h2{font-size:26px;margin-bottom:10px;color:#8b0000}
+    .modal-content .score-big{font-size:48px;color:#8b0000;font-weight:700;margin:15px 0;font-family:'Ma Shan Zheng',sans-serif}
+    .win-tiles{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin:20px 0;padding:15px;background:#f5f0e6;border-radius:12px}
+    .win-tiles .tile{width:36px;height:50px;font-size:26px;cursor:default}
     .win-tiles .tile:hover{transform:none}
     
     /* Responsive */
     @media(max-width:480px){
-      .tile{width:32px;height:44px;font-size:22px}
-      .meld .tile{width:26px;height:36px;font-size:18px}
-      .discard-pile .tile{width:22px;height:30px;font-size:14px}
+      .tile{width:34px;height:46px;font-size:26px}
+      .meld .tile{width:28px;height:38px;font-size:20px}
+      .discard-pile .tile{width:24px;height:32px;font-size:16px}
       .back-tile{width:20px;height:28px}
       .opp.left .back-tile,.opp.right .back-tile{width:28px;height:20px}
-      .last-discard .tile{width:36px;height:48px;font-size:26px}
-      .actions .btn{padding:10px 14px;font-size:12px}
-      .win-tiles .tile{width:28px;height:38px;font-size:20px}
+      .last-discard .tile{width:40px;height:54px;font-size:30px}
+      .actions .btn{padding:10px 12px;min-width:55px}
+      .actions .btn .cn{font-size:16px}
+      .actions .btn .en{font-size:9px}
+      .win-tiles .tile{width:30px;height:42px;font-size:22px}
     }
   </style>
 </head>
@@ -154,22 +207,22 @@
     <!-- Auth -->
     <div id="auth" class="screen">
       <div class="auth-box">
-        <h1><span>🀄</span>Mahjong</h1>
+        <h1><span>🀄</span>麻將 Mahjong</h1>
         <div class="tabs">
-          <button class="active" onclick="showTab('login')">Login</button>
-          <button onclick="showTab('register')">Register</button>
+          <button class="active" onclick="showTab('login')">登入 Login</button>
+          <button onclick="showTab('register')">註冊 Register</button>
         </div>
         <form id="login-form" class="form active" onsubmit="doLogin(event)">
-          <input type="text" id="l-user" placeholder="Username" required>
-          <input type="password" id="l-pass" placeholder="Password" required>
-          <button type="submit" class="btn btn-primary">Login</button>
+          <input type="text" id="l-user" placeholder="Username 用戶名" required>
+          <input type="password" id="l-pass" placeholder="Password 密碼" required>
+          <button type="submit" class="btn btn-primary">登入 Login</button>
           <div class="error-msg" id="l-err"></div>
         </form>
         <form id="register-form" class="form" onsubmit="doRegister(event)">
-          <input type="text" id="r-user" placeholder="Username (3+ characters)" required minlength="3">
-          <input type="text" id="r-name" placeholder="Display Name" required>
-          <input type="password" id="r-pass" placeholder="Password (4+ characters)" required minlength="4">
-          <button type="submit" class="btn btn-primary">Create Account</button>
+          <input type="text" id="r-user" placeholder="Username 用戶名 (3+ chars)" required minlength="3">
+          <input type="text" id="r-name" placeholder="Display Name 顯示名稱" required>
+          <input type="password" id="r-pass" placeholder="Password 密碼 (4+ chars)" required minlength="4">
+          <button type="submit" class="btn btn-primary">註冊 Create Account</button>
           <div class="error-msg" id="r-err"></div>
         </form>
       </div>
@@ -179,22 +232,22 @@
     <div id="lobby" class="screen">
       <div class="header">
         <div class="user"><span>🀄</span><span id="my-name">Player</span></div>
-        <button class="btn-small" onclick="doLogout()">Logout</button>
+        <button class="btn-small" onclick="doLogout()">登出 Logout</button>
       </div>
       <div class="lobby-body">
         <div class="create-join">
-          <button class="btn btn-primary btn-large" onclick="createRoom()">Create Room</button>
+          <button class="btn btn-primary btn-large" onclick="createRoom()">開房 Create Room</button>
           <div class="join-row">
             <input type="text" id="join-code" placeholder="CODE" maxlength="4">
-            <button class="btn btn-primary" onclick="joinRoom()">Join</button>
+            <button class="btn btn-primary" onclick="joinRoom()">加入 Join</button>
           </div>
         </div>
         <div class="section">
-          <h2>Open Rooms</h2>
+          <h2>開放房間 Open Rooms</h2>
           <div id="rooms" class="room-list"></div>
         </div>
         <div class="section">
-          <h2>Leaderboard</h2>
+          <h2>排行榜 Leaderboard</h2>
           <div id="lb" class="lb-list"></div>
         </div>
       </div>
@@ -203,15 +256,19 @@
     <!-- Waiting -->
     <div id="waiting" class="screen">
       <div class="wait-box">
-        <h2>Room: <span id="room-code">XXXX</span></h2>
+        <h2>房間 Room: <span id="room-code">XXXX</span></h2>
         <div id="seats" class="seats"></div>
-        <button id="start-btn" class="btn btn-primary" onclick="startGame()" disabled>Waiting for players...</button>
-        <button class="btn btn-small" onclick="leaveRoom()">Leave Room</button>
+        <button id="start-btn" class="btn btn-primary" onclick="startGame()" disabled>等待玩家 Waiting...</button>
+        <button class="btn btn-small" onclick="leaveRoom()">離開 Leave</button>
       </div>
     </div>
 
     <!-- Game -->
     <div id="game" class="screen">
+      <div class="game-header">
+        <button class="btn-leave" onclick="leaveGame()">✕ 離開 Leave</button>
+        <button class="btn-chat-toggle" onclick="toggleChat()">💬 聊天 Chat</button>
+      </div>
       <div class="game-container">
         <div class="opp top" id="opp-top">
           <div class="opp-name"></div>
@@ -231,7 +288,7 @@
         <div class="center-area">
           <div class="game-info">
             <span class="wind" id="round-wind">東</span>
-            <span class="wall">Tiles: <span id="wall-count">144</span></span>
+            <span class="wall">餘牌 <span id="wall-count">144</span></span>
           </div>
           <div id="discards" class="discard-pile"></div>
           <div id="last" class="last-discard"></div>
@@ -243,22 +300,45 @@
         </div>
       </div>
       <div class="actions">
-        <button class="btn" id="btn-chow" onclick="claimChow()" disabled>Chow</button>
-        <button class="btn" id="btn-pung" onclick="claimPung()" disabled>Pung</button>
-        <button class="btn" id="btn-kong" onclick="claimKong()" disabled>Kong</button>
-        <button class="btn btn-win" id="btn-mj" onclick="claimMahjong()" disabled>Mahjong!</button>
-        <button class="btn btn-skip" onclick="skip()">Skip</button>
+        <button class="btn" id="btn-chow" onclick="claimChow()" disabled>
+          <span class="cn">吃</span><span class="en">Chow</span>
+        </button>
+        <button class="btn" id="btn-pung" onclick="claimPung()" disabled>
+          <span class="cn">碰</span><span class="en">Pung</span>
+        </button>
+        <button class="btn" id="btn-kong" onclick="claimKong()" disabled>
+          <span class="cn">槓</span><span class="en">Kong</span>
+        </button>
+        <button class="btn btn-win" id="btn-mj" onclick="claimMahjong()" disabled>
+          <span class="cn">胡</span><span class="en">Mahjong</span>
+        </button>
+        <button class="btn btn-skip" onclick="skip()">
+          <span class="cn">過</span><span class="en">Skip</span>
+        </button>
       </div>
-      <div class="turn-indicator" id="turn-ind">Your Turn</div>
+      <div class="turn-indicator" id="turn-ind">輪到你了 Your Turn</div>
+      
+      <!-- Chat Panel -->
+      <div id="chat-panel" class="chat-panel">
+        <div class="chat-header">
+          <span>💬 聊天 Chat</span>
+          <button onclick="toggleChat()">✕</button>
+        </div>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input">
+          <input type="text" id="chat-text" placeholder="輸入訊息 Type message..." maxlength="200" onkeypress="if(event.key==='Enter')sendChat()">
+          <button onclick="sendChat()">發送</button>
+        </div>
+      </div>
     </div>
 
     <!-- Win Modal -->
     <div id="win-modal" class="modal">
       <div class="modal-content">
-        <h2>🎉 <span id="winner-name">Player</span> Wins!</h2>
-        <div class="score-big"><span id="win-score">0</span></div>
+        <h2>🎉 <span id="winner-name">Player</span> 胡牌!</h2>
+        <div class="score-big"><span id="win-score">0</span> 分</div>
         <div id="win-hand" class="win-tiles"></div>
-        <button class="btn btn-primary" onclick="backToLobby()">Back to Lobby</button>
+        <button class="btn btn-primary" onclick="backToLobby()">返回大廳 Back to Lobby</button>
       </div>
     </div>
   </div>
@@ -267,12 +347,10 @@
   <script>
     let socket, user, currentRoom, gameState, selectedTiles = [];
 
-    // Helpers
     const $=id=>document.getElementById(id);
     const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active')};
     const api=async(url,opts={})=>{const r=await fetch(url,{...opts,headers:{'Content-Type':'application/json'},credentials:'include'});return r.json()};
 
-    // Auth
     function showTab(tab){
       document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
       document.querySelectorAll('.form').forEach(f=>f.classList.remove('active'));
@@ -301,7 +379,6 @@
       show('auth');return false;
     }
 
-    // Socket
     function initSocket(){
       socket=io();
       socket.on('connect',()=>{const t=localStorage.getItem('token');if(t)socket.emit('auth',t,r=>{if(!r.success)doLogout()})});
@@ -310,68 +387,58 @@
       socket.on('lobbyRemoved',loadRooms);
       socket.on('playerJoined',d=>updateSeats(d.players||[]));
       socket.on('playerLeft',d=>updateSeats(d.players||[]));
-      socket.on('readyToStart',d=>{updateSeats(d.players);$('start-btn').disabled=false;$('start-btn').textContent='Start Game!'});
+      socket.on('readyToStart',d=>{updateSeats(d.players);$('start-btn').disabled=false;$('start-btn').textContent='開始 Start Game!'});
       socket.on('gameStarted',d=>{gameState=d;show('game');renderGame()});
       socket.on('stateUpdate',d=>{gameState=d;renderGame()});
       socket.on('gameWon',handleWin);
-      socket.on('gameDraw',()=>{alert('Draw!');backToLobby()});
+      socket.on('gameDraw',()=>{alert('流局 Draw!');backToLobby()});
+      socket.on('chat',d=>addChatMessage(d));
     }
 
-    // Lobby
     function showLobby(){show('lobby');$('my-name').textContent=user.displayName;loadRooms();loadLeaderboard()}
 
     async function loadRooms(){
       const d=await api('/api/lobbies');
-      $('rooms').innerHTML=d.length?d.map(r=>`<div class="room-card" onclick="joinRoomByCode('${r.roomCode}')"><span class="code">${r.roomCode}</span><span class="count">${r.playerCount}/4</span></div>`).join(''):'<div class="empty">No open rooms</div>';
+      $('rooms').innerHTML=d.length?d.map(r=>`<div class="room-card" onclick="joinRoomByCode('${r.roomCode}')"><span class="code">${r.roomCode}</span><span class="count">${r.playerCount}/4</span></div>`).join(''):'<div class="empty">沒有開放房間 No open rooms</div>';
     }
 
     async function loadLeaderboard(){
       const d=await api('/api/leaderboard');
-      $('lb').innerHTML=d.length?d.slice(0,8).map((p,i)=>`<div class="lb-row"><span class="rank">${i+1}</span><span>${p.display_name}</span><span class="score">${p.total_score}</span></div>`).join(''):'<div class="empty">No games yet</div>';
+      $('lb').innerHTML=d.length?d.slice(0,8).map((p,i)=>`<div class="lb-row"><span class="rank">${i+1}</span><span>${p.display_name}</span><span class="score">${p.total_score}</span></div>`).join(''):'<div class="empty">暫無記錄 No games yet</div>';
     }
 
     function createRoom(){socket.emit('createRoom',r=>{if(r.success){currentRoom=r.roomCode;showWaiting(r)}else alert(r.error||'Failed')})}
     function joinRoom(){const c=$('join-code').value.toUpperCase();if(c)joinRoomByCode(c)}
     function joinRoomByCode(code){socket.emit('joinRoom',code,r=>{if(r.success){currentRoom=r.roomCode;showWaiting(r)}else alert(r.error||'Failed')})}
 
-    function showWaiting(r){show('waiting');$('room-code').textContent=r.roomCode;updateSeats(r.players);$('start-btn').disabled=r.players.length<4;$('start-btn').textContent=r.players.length<4?`Waiting... (${r.players.length}/4)`:'Start Game!'}
+    function showWaiting(r){show('waiting');$('room-code').textContent=r.roomCode;updateSeats(r.players);$('start-btn').disabled=r.players.length<4;$('start-btn').textContent=r.players.length<4?`等待中 (${r.players.length}/4)`:'開始 Start Game!'}
 
     function updateSeats(players){
       const w=['east','south','west','north'],l=['東 East','南 South','西 West','北 North'];
       $('seats').innerHTML=w.map((wind,i)=>{
         const p=players.find(x=>x.seatWind===wind);
         const isMe=p&&p.oderId===user.id;
-        return`<div class="seat${p?' filled':''}${isMe?' me':''}"><div class="wind">${l[i]}</div><div class="name${p?'':' empty'}">${p?p.displayName:'Waiting...'}</div></div>`;
+        return`<div class="seat${p?' filled':''}${isMe?' me':''}"><div class="wind">${l[i]}</div><div class="name${p?'':' empty'}">${p?p.displayName:'等待中...'}</div></div>`;
       }).join('');
-      if(players.length===4){$('start-btn').disabled=false;$('start-btn').textContent='Start Game!'}
+      if(players.length===4){$('start-btn').disabled=false;$('start-btn').textContent='開始 Start Game!'}
     }
 
     function leaveRoom(){socket.emit('leaveRoom');currentRoom=null;showLobby()}
     function startGame(){socket.emit('startGame',r=>{if(!r.success)alert(r.error||'Failed')})}
 
-    // Game
     function renderGame(){
       if(!gameState)return;
-      // Hand
       $('my-hand').innerHTML=(gameState.myHand||[]).map(t=>`<div class="tile${selectedTiles.includes(t.id)?' selected':''}" onclick="clickTile(${t.id})">${t.char}</div>`).join('');
-      // Melds
       $('my-melds').innerHTML=(gameState.myExposed||[]).map(m=>`<div class="meld">${m.tiles.map(t=>`<div class="tile">${t.char}</div>`).join('')}</div>`).join('');
-      // Info
       $('my-info').textContent=`${user.displayName} - ${(gameState.mySeatWind||'')[0]?.toUpperCase()||''}`;
-      // Wall
       $('wall-count').textContent=gameState.wallCount||0;
-      // Discards
       $('discards').innerHTML=(gameState.discardPile||[]).map(t=>`<div class="tile">${t.char}</div>`).join('');
-      // Last
       $('last').innerHTML=gameState.lastDiscard?`<div class="tile">${gameState.lastDiscard.char}</div>`:'';
-      // Opponents
       renderOpponents();
-      // Buttons
       $('btn-chow').disabled=!gameState.canChow;
       $('btn-pung').disabled=!gameState.canPung;
       $('btn-kong').disabled=!gameState.canKong;
       $('btn-mj').disabled=!gameState.canMahjong;
-      // Turn
       $('turn-ind').classList.toggle('show',gameState.isMyTurn);
     }
 
@@ -387,7 +454,7 @@
         if(!el)return;
         el.querySelector('.opp-name').textContent=p.displayName;
         el.querySelector('.opp-tiles').innerHTML=Array(p.handCount||0).fill('<div class="back-tile"></div>').join('');
-        el.querySelector('.opp-melds').innerHTML=(p.exposed||[]).map(m=>`<div class="meld">${m.tiles.map(t=>`<div class="tile" style="width:24px;height:32px;font-size:16px">${t.char}</div>`).join('')}</div>`).join('');
+        el.querySelector('.opp-melds').innerHTML=(p.exposed||[]).map(m=>`<div class="meld">${m.tiles.map(t=>`<div class="tile" style="width:26px;height:36px;font-size:18px">${t.char}</div>`).join('')}</div>`).join('');
       });
     }
 
@@ -404,8 +471,8 @@
 
     function claimPung(){socket.emit('claimPung',r=>{if(!r.success)alert(r.error||'Cannot')})}
     function claimKong(){socket.emit('claimKong',r=>{if(!r.success)alert(r.error||'Cannot')})}
-    function claimChow(){if(selectedTiles.length===2)socket.emit('claimChow',selectedTiles,r=>{if(r.success)selectedTiles=[];else alert(r.error)});else alert('Select 2 tiles')}
-    function claimMahjong(){socket.emit('mahjong',!!gameState.lastDiscard,r=>{if(!r.success)alert(r.error||'Not winning')})}
+    function claimChow(){if(selectedTiles.length===2)socket.emit('claimChow',selectedTiles,r=>{if(r.success)selectedTiles=[];else alert(r.error)});else alert('Select 2 tiles 選擇2張牌')}
+    function claimMahjong(){socket.emit('mahjong',!!gameState.lastDiscard,r=>{if(!r.success)alert(r.error||'Not winning 未胡牌')})}
     function skip(){selectedTiles=[];renderGame()}
 
     function handleWin(d){
@@ -415,9 +482,32 @@
       $('win-modal').classList.add('active');
     }
 
-    function backToLobby(){$('win-modal').classList.remove('active');socket.emit('leaveRoom');currentRoom=null;gameState=null;showLobby()}
+    function backToLobby(){$('win-modal').classList.remove('active');socket.emit('leaveRoom');currentRoom=null;gameState=null;$('chat-messages').innerHTML='';$('chat-panel').classList.remove('open');showLobby()}
 
-    // Init
+    function toggleChat(){$('chat-panel').classList.toggle('open')}
+    
+    function sendChat(){
+      const input=$('chat-text');
+      const msg=input.value.trim();
+      if(msg&&socket){
+        socket.emit('chat',msg);
+        input.value='';
+      }
+    }
+    
+    function addChatMessage(d){
+      const msgs=$('chat-messages');
+      const time=new Date(d.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      msgs.innerHTML+=`<div class="chat-msg"><div class="name">${d.displayName}</div><div class="text">${d.message}</div><div class="time">${time}</div></div>`;
+      msgs.scrollTop=msgs.scrollHeight;
+    }
+    
+    function leaveGame(){
+      if(confirm('確定離開遊戲? Leave game?')){
+        backToLobby();
+      }
+    }
+
     window.onload=()=>setTimeout(()=>{checkAuth().then(()=>$('loading').classList.remove('active'))},500);
   </script>
 </body>
