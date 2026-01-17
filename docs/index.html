@@ -94,44 +94,48 @@
     .opp-name{font-size:12px;color:#fff;margin-bottom:5px;background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:10px}
     .opp-tiles{display:flex;gap:2px}
     .opp.left .opp-tiles,.opp.right .opp-tiles{flex-direction:column}
-    .back-tile{width:30px;height:42px;background:linear-gradient(145deg,#1e88e5,#1565c0);border-radius:4px;border:1px solid #0d47a1;box-shadow:inset 0 0 10px rgba(255,255,255,0.2)}
-    .opp.left .back-tile,.opp.right .back-tile{width:42px;height:30px}
-    .opp-melds{display:flex;gap:6px;margin-top:6px}
+    .back-tile{width:22px;height:32px;background:linear-gradient(180deg,#2196f3,#1565c0);border-radius:3px;border:1px solid #0d47a1}
+    .opp.left .back-tile,.opp.right .back-tile{width:32px;height:22px}
+    .opp-melds{display:flex;gap:4px;margin-top:5px}
     .center-area{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
     .game-info{display:flex;gap:20px;justify-content:center;align-items:center;margin-bottom:15px}
     .game-info .wind{font-size:36px;color:#ffd700;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
     .game-info .wall{color:#fff;font-size:14px;background:rgba(0,0,0,0.3);padding:5px 12px;border-radius:15px}
-    .discard-pile{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:280px;padding:15px;background:rgba(139,90,43,0.6);border-radius:12px;min-height:80px;border:2px solid rgba(139,90,43,0.8)}
-    .discard-pile .tile{width:34px;height:46px;font-size:26px;cursor:default}
+    .discard-pile{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;max-width:220px;padding:10px;background:rgba(139,90,43,0.5);border-radius:10px;min-height:60px;border:1px solid rgba(139,90,43,0.6)}
+    .discard-pile .tile{width:28px;height:38px;font-size:22px;cursor:default}
     .discard-pile .tile:hover{transform:none}
-    .last-discard{margin-top:15px}
-    .last-discard .tile{width:58px;height:78px;font-size:46px;border:3px solid #ffd700;box-shadow:0 0 20px rgba(255,215,0,0.6);animation:pulse 1s infinite;cursor:default}
+    .last-discard{margin-top:12px}
+    .last-discard .tile{width:48px;height:66px;font-size:38px;border:2px solid #ffd700;box-shadow:0 0 15px rgba(255,215,0,0.5);animation:pulse 1s infinite;cursor:default}
     .last-discard .tile:hover{transform:none}
     @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.6)}50%{box-shadow:0 0 30px rgba(255,215,0,0.9)}}
-    .my-section{position:absolute;bottom:75px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;width:95%;max-width:580px}
-    .my-melds{display:flex;gap:10px;margin-bottom:10px}
-    .meld{display:flex;gap:2px;background:rgba(0,0,0,0.3);padding:6px;border-radius:8px}
-    .meld .tile{width:40px;height:54px;font-size:30px;cursor:default}
+    .my-section{position:absolute;bottom:75px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 10px}
+    .my-melds{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;justify-content:center}
+    .meld{display:flex;gap:2px;background:rgba(0,0,0,0.3);padding:5px;border-radius:6px}
+    .meld .tile{width:36px;height:50px;font-size:28px;cursor:default}
     .meld .tile:hover{transform:none}
-    .my-hand{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;padding:15px;background:rgba(0,0,0,0.3);border-radius:15px}
-    .my-info{margin-top:10px;font-size:14px;color:#fff;background:rgba(0,0,0,0.3);padding:5px 15px;border-radius:10px}
+    .my-hand{display:flex;gap:4px;padding:12px 15px;background:rgba(0,0,0,0.3);border-radius:12px;overflow-x:auto;max-width:100%;justify-content:flex-start}
+    .my-hand::-webkit-scrollbar{height:6px}
+    .my-hand::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.3);border-radius:3px}
+    .my-info{margin-top:8px;font-size:13px;color:#fff;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:8px}
     
-    /* Tiles - Traditional Style (Larger) */
+    /* Tiles - Clean Simple Style */
     .tile{
-      width:52px;height:72px;
-      background:linear-gradient(145deg,#fffff8,#f0ead6);
-      border:2px solid #b8a88a;
-      border-radius:6px;
+      width:44px;height:60px;
+      background:linear-gradient(180deg,#fffef8 0%,#f5f0e0 100%);
+      border:1px solid #999;
+      border-radius:5px;
       display:flex;align-items:center;justify-content:center;
-      font-size:42px;
+      font-size:36px;
       cursor:pointer;
-      transition:transform 0.15s,box-shadow 0.15s;
+      transition:transform 0.15s;
       user-select:none;
-      box-shadow:2px 2px 4px rgba(0,0,0,0.2),inset 0 0 20px rgba(255,255,255,0.5);
+      box-shadow:1px 2px 3px rgba(0,0,0,0.2);
+      flex-shrink:0;
+    }
       position:relative;
     }
-    .tile:hover{transform:translateY(-8px);box-shadow:2px 6px 12px rgba(0,0,0,0.3)}
-    .tile.selected{transform:translateY(-12px);border-color:#ffd700;box-shadow:0 8px 25px rgba(255,215,0,0.5)}
+    .tile:hover{transform:translateY(-6px)}
+    .tile.selected{transform:translateY(-10px);border-color:#d4af37;box-shadow:0 4px 12px rgba(212,175,55,0.5)}
     
     /* Action Buttons */
     .actions{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:8px;padding:12px;background:linear-gradient(to top,rgba(30,70,32,0.95) 0%,transparent 100%)}
@@ -176,66 +180,70 @@
     .modal-content{background:#fff;border-radius:20px;padding:35px;text-align:center;max-width:450px;width:100%;border:3px solid #d4c4a8}
     .modal-content h2{font-size:26px;margin-bottom:10px;color:#8b0000}
     .modal-content .score-big{font-size:48px;color:#8b0000;font-weight:700;margin:15px 0;font-family:'Ma Shan Zheng',sans-serif}
-    .win-tiles{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin:20px 0;padding:15px;background:#f5f0e6;border-radius:12px}
-    .win-tiles .tile{width:42px;height:56px;font-size:30px;cursor:default}
+    .win-tiles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:15px 0;padding:12px;background:#f5f0e6;border-radius:10px}
+    .win-tiles .tile{width:36px;height:50px;font-size:28px;cursor:default}
     .win-tiles .tile:hover{transform:none}
     
     /* Music Toggle */
     .music-toggle{position:fixed;top:10px;right:10px;z-index:60;padding:8px 12px;background:rgba(255,255,255,0.9);border:none;border-radius:8px;cursor:pointer;font-size:16px}
     
-    /* Responsive - Use viewport units for fluid scaling */
-    @media(max-width:900px){
-      .tile{width:calc(6vw + 10px);height:calc(8vw + 14px);font-size:calc(4vw + 8px)}
-      .meld .tile{width:calc(5vw + 6px);height:calc(7vw + 8px);font-size:calc(3.5vw + 6px)}
-      .discard-pile .tile{width:calc(4vw + 4px);height:calc(5.5vw + 6px);font-size:calc(3vw + 4px)}
-      .discard-pile{max-width:50vw;padding:10px}
-      .back-tile{width:calc(3vw + 6px);height:calc(4vw + 10px)}
-      .opp.left .back-tile,.opp.right .back-tile{width:calc(4vw + 10px);height:calc(3vw + 6px)}
-      .last-discard .tile{width:calc(7vw + 12px);height:calc(9vw + 16px);font-size:calc(5vw + 10px)}
-      .my-hand{padding:10px;gap:3px}
-      .my-section{bottom:70px;width:98%}
-      .actions .btn{padding:8px 10px;min-width:calc(10vw + 20px)}
-      .actions .btn .cn{font-size:calc(2vw + 10px)}
-      .actions .btn .en{font-size:calc(1vw + 6px)}
-      .game-info .wind{font-size:calc(4vw + 12px)}
-      .game-info .wall{font-size:calc(1.5vw + 8px)}
-      .opp-name{font-size:calc(1.2vw + 8px);padding:3px 8px}
-      .center-area{top:45%}
-    }
-    
-    @media(max-width:600px){
-      .tile{width:calc(8vw + 6px);height:calc(11vw + 8px);font-size:calc(6vw + 4px)}
-      .meld .tile{width:calc(6vw + 4px);height:calc(8vw + 6px);font-size:calc(4.5vw + 2px)}
-      .discard-pile .tile{width:calc(5vw + 2px);height:calc(7vw + 3px);font-size:calc(4vw + 1px)}
-      .discard-pile{max-width:60vw;min-height:60px;padding:8px}
-      .back-tile{width:calc(4vw + 4px);height:calc(5.5vw + 6px)}
-      .opp.left .back-tile,.opp.right .back-tile{width:calc(5.5vw + 6px);height:calc(4vw + 4px)}
-      .last-discard .tile{width:calc(9vw + 8px);height:calc(12vw + 10px);font-size:calc(7vw + 6px)}
+    /* Responsive - Mobile First */
+    @media(max-width:700px){
+      .tile{width:38px;height:52px;font-size:30px}
+      .meld .tile{width:30px;height:42px;font-size:24px}
+      .discard-pile .tile{width:24px;height:32px;font-size:18px}
+      .discard-pile{max-width:180px;padding:8px}
+      .back-tile{width:18px;height:26px}
+      .opp.left .back-tile,.opp.right .back-tile{width:26px;height:18px}
+      .last-discard .tile{width:42px;height:58px;font-size:34px}
+      .my-hand{padding:10px 12px;gap:3px}
       .my-section{bottom:65px}
-      .actions{padding:8px;gap:5px}
-      .actions .btn{padding:6px 8px;min-width:auto}
-      .actions .btn .cn{font-size:14px}
+      .actions .btn{padding:8px 10px;min-width:50px}
+      .actions .btn .cn{font-size:15px}
       .actions .btn .en{font-size:8px}
-      .opp.top{top:55px}
-      .opp.left{left:5px}
-      .opp.right{right:5px}
-      .game-header{padding:8px 10px}
-      .btn-leave,.btn-chat-toggle{padding:6px 10px;font-size:11px}
-      .center-area{top:42%}
-      .win-tiles .tile{width:calc(7vw + 8px);height:calc(9vw + 10px);font-size:calc(5vw + 6px)}
+      .game-info .wind{font-size:28px}
+      .game-info .wall{font-size:12px;padding:4px 10px}
+      .opp-name{font-size:10px;padding:2px 8px}
+      .center-area{top:40%}
+      .opp.top{top:50px}
     }
     
-    @media(max-width:400px){
-      .tile{width:calc(9vw + 4px);height:calc(12vw + 6px);font-size:calc(7vw + 2px)}
-      .meld .tile{width:calc(7vw + 2px);height:calc(9vw + 4px);font-size:calc(5vw)}
-      .discard-pile .tile{width:calc(6vw);height:calc(8vw + 2px);font-size:calc(5vw)}
-      .discard-pile{max-width:70vw}
-      .back-tile{width:calc(5vw + 2px);height:calc(6.5vw + 4px)}
-      .opp.left .back-tile,.opp.right .back-tile{width:calc(6.5vw + 4px);height:calc(5vw + 2px)}
-      .last-discard .tile{width:calc(10vw + 6px);height:calc(13vw + 8px);font-size:calc(8vw + 4px)}
-      .actions .btn .cn{font-size:12px}
-      .actions .btn .en{font-size:7px}
+    @media(max-width:480px){
+      .tile{width:32px;height:44px;font-size:26px}
+      .meld .tile{width:26px;height:36px;font-size:20px}
+      .discard-pile .tile{width:20px;height:28px;font-size:15px}
+      .discard-pile{max-width:150px;padding:6px;min-height:45px}
+      .back-tile{width:14px;height:20px}
+      .opp.left .back-tile,.opp.right .back-tile{width:20px;height:14px}
+      .last-discard .tile{width:36px;height:50px;font-size:28px}
+      .my-hand{padding:8px 10px;gap:2px}
       .my-section{bottom:60px}
+      .actions{padding:8px 5px;gap:4px}
+      .actions .btn{padding:6px 8px;min-width:42px}
+      .actions .btn .cn{font-size:13px}
+      .actions .btn .en{font-size:7px}
+      .game-info .wind{font-size:24px}
+      .game-info{gap:12px;margin-bottom:10px}
+      .center-area{top:38%}
+      .opp.top{top:45px}
+      .opp.left{left:3px}
+      .opp.right{right:3px}
+      .opp-name{font-size:9px;padding:2px 6px}
+      .game-header{padding:6px 8px}
+      .btn-leave,.btn-chat-toggle{padding:5px 8px;font-size:10px}
+      .win-tiles .tile{width:28px;height:38px;font-size:22px}
+    }
+    
+    @media(max-width:360px){
+      .tile{width:28px;height:38px;font-size:22px}
+      .meld .tile{width:22px;height:30px;font-size:16px}
+      .discard-pile .tile{width:18px;height:24px;font-size:13px}
+      .discard-pile{max-width:130px}
+      .last-discard .tile{width:32px;height:44px;font-size:24px}
+      .actions .btn{padding:5px 6px;min-width:38px}
+      .actions .btn .cn{font-size:11px}
+      .actions .btn .en{font-size:6px}
+      .my-section{bottom:55px}
     }
   </style>
 </head>
