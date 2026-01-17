@@ -14,8 +14,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'mahjong-secret-key-2024';
-const DEEPSEEK_KEY = process.env.DEEPSEEK_KEY || 'sk-3f7cdbf2f0f744af8c1157cf2b8dbbff';
+const JWT_SECRET = process.env.JWT_SECRET;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_KEY;
+
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET environment variable required');
+  process.exit(1);
+}
 
 // AI Chat state
 const aiChatCooldown = new Map(); // roomCode -> lastResponseTime
@@ -24,7 +29,11 @@ const aiChatCooldown = new Map(); // roomCode -> lastResponseTime
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { 
+    origin: process.env.ALLOWED_ORIGIN || 'https://mahjong-owe1.onrender.com',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
 });
 
 const db = new MahjongDB();
@@ -33,13 +42,34 @@ const playerSockets = new Map();
 const socketUsers = new Map();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); // Limit body size
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '..', 'docs')));
 
+// Simple rate limiter
+const rateLimits = new Map();
+function rateLimit(key, maxRequests = 30, windowMs = 60000) {
+  const now = Date.now();
+  const record = rateLimits.get(key) || { count: 0, resetAt: now + windowMs };
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + windowMs;
+  }
+  record.count++;
+  rateLimits.set(key, record);
+  return record.count > maxRequests;
+}
+
+// Sanitize input
+function sanitize(str, maxLen = 200) {
+  if (typeof str !== 'string') return '';
+  return str.slice(0, maxLen).replace(/[<>]/g, '');
+}
+
 // CORS
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://mahjong-owe1.onrender.com';
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
   res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -72,24 +102,38 @@ function generateRoomCode() {
 // ==================== REST API ====================
 
 app.post('/api/register', async (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  if (rateLimit(`register:${ip}`, 5, 300000)) { // 5 per 5 min
+    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+  }
+  
   const { username, password, displayName } = req.body;
   if (!username || !password || !displayName) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  if (username.length < 3) return res.status(400).json({ error: 'Username must be 3+ characters' });
-  if (password.length < 4) return res.status(400).json({ error: 'Password must be 4+ characters' });
+  if (username.length < 3 || username.length > 20) return res.status(400).json({ error: 'Username must be 3-20 characters' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be 6+ characters' });
+  if (displayName.length > 30) return res.status(400).json({ error: 'Display name too long' });
 
-  const result = await db.createUser(username, password, displayName);
+  const cleanUsername = sanitize(username, 20);
+  const cleanDisplayName = sanitize(displayName, 30);
+  
+  const result = await db.createUser(cleanUsername, password, cleanDisplayName);
   if (result.success) {
-    const token = jwt.sign({ id: result.userId, username, displayName }, JWT_SECRET, { expiresIn: '30d' });
-    res.cookie('token', token, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
-    res.json({ success: true, token, user: { id: result.userId, username, displayName } });
+    const token = jwt.sign({ id: result.userId, username: cleanUsername, displayName: cleanDisplayName }, JWT_SECRET, { expiresIn: '30d' });
+    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.json({ success: true, token, user: { id: result.userId, username: cleanUsername, displayName: cleanDisplayName } });
   } else {
     res.status(400).json({ error: result.error });
   }
 });
 
 app.post('/api/login', async (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  if (rateLimit(`login:${ip}`, 10, 60000)) { // 10 per minute
+    return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+  }
+  
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
 
@@ -100,10 +144,11 @@ app.post('/api/login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '30d' }
     );
-    res.cookie('token', token, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: 30 * 24 * 60 * 60 * 1000 });
     res.json({ success: true, token, user: result.user });
   } else {
-    res.status(401).json({ error: result.error });
+    // Generic error to prevent username enumeration
+    res.status(401).json({ error: 'Invalid credentials' });
   }
 });
 
@@ -151,8 +196,11 @@ app.get('/api/lobbies', (req, res) => {
   res.json(lobbies);
 });
 
-// Debug endpoint
+// Debug endpoint - only in development
 app.get('/api/debug', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const info = {
     gamesCount: games.size,
     games: Array.from(games.entries()).map(([code, g]) => ({
@@ -623,11 +671,15 @@ io.on('connection', (socket) => {
 
   socket.on('chat', async (message) => {
     if (currentRoom && currentUser) {
-      const msg = message.substring(0, 200);
+      // Rate limit chat
+      if (rateLimit(`chat:${socket.id}`, 20, 60000)) return; // 20 per minute
+      
+      const msg = sanitize(message, 200);
+      if (!msg.trim()) return;
       
       // Emit human message
       io.to(currentRoom).emit('chat', {
-        displayName: currentUser.displayName,
+        displayName: sanitize(currentUser.displayName, 30),
         message: msg,
         timestamp: Date.now()
       });
