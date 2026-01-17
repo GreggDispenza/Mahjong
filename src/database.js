@@ -2,8 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lexgvescxcmzwfympppf.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxleGd2ZXNjeGNtendmeW1wcHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg1NDQ2NTIsImV4cCI6MjA4NDEyMDY1Mn0.9AvkykuUSlesYmS458CaOImMpBid-i3iMrmGSdJYmAI';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('❌ SUPABASE_URL and SUPABASE_KEY environment variables required');
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
