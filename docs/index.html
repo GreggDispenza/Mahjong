@@ -94,38 +94,38 @@
     .opp-name{font-size:12px;color:#fff;margin-bottom:5px;background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:10px}
     .opp-tiles{display:flex;gap:2px}
     .opp.left .opp-tiles,.opp.right .opp-tiles{flex-direction:column}
-    .back-tile{width:22px;height:32px;background:linear-gradient(180deg,#2196f3,#1565c0);border-radius:3px;border:1px solid #0d47a1}
-    .opp.left .back-tile,.opp.right .back-tile{width:32px;height:22px}
+    .back-tile{width:18px;height:26px;background:linear-gradient(180deg,#2196f3,#1565c0);border-radius:3px;border:1px solid #0d47a1}
+    .opp.left .back-tile,.opp.right .back-tile{width:26px;height:18px}
     .opp-melds{display:flex;gap:4px;margin-top:5px}
     .center-area{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
     .game-info{display:flex;gap:20px;justify-content:center;align-items:center;margin-bottom:15px}
     .game-info .wind{font-size:36px;color:#ffd700;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
     .game-info .wall{color:#fff;font-size:14px;background:rgba(0,0,0,0.3);padding:5px 12px;border-radius:15px}
-    .discard-pile{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;max-width:220px;padding:10px;background:rgba(139,90,43,0.5);border-radius:10px;min-height:60px;border:1px solid rgba(139,90,43,0.6)}
-    .discard-pile .tile{width:28px;height:38px;font-size:22px;cursor:default}
+    .discard-pile{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;max-width:200px;padding:8px;background:rgba(139,90,43,0.5);border-radius:8px;min-height:50px;border:1px solid rgba(139,90,43,0.6)}
+    .discard-pile .tile{width:24px;height:32px;font-size:18px;cursor:default}
     .discard-pile .tile:hover{transform:none}
-    .last-discard{margin-top:12px}
-    .last-discard .tile{width:48px;height:66px;font-size:38px;border:2px solid #ffd700;box-shadow:0 0 15px rgba(255,215,0,0.5);animation:pulse 1s infinite;cursor:default}
+    .last-discard{margin-top:10px}
+    .last-discard .tile{width:40px;height:54px;font-size:30px;border:2px solid #ffd700;box-shadow:0 0 12px rgba(255,215,0,0.5);animation:pulse 1s infinite;cursor:default}
     .last-discard .tile:hover{transform:none}
     @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.6)}50%{box-shadow:0 0 30px rgba(255,215,0,0.9)}}
-    .my-section{position:absolute;bottom:75px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 10px}
-    .my-melds{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;justify-content:center}
-    .meld{display:flex;gap:2px;background:rgba(0,0,0,0.3);padding:5px;border-radius:6px}
-    .meld .tile{width:36px;height:50px;font-size:28px;cursor:default}
+    .my-section{position:absolute;bottom:75px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 5px}
+    .my-melds{display:flex;gap:6px;margin-bottom:6px;flex-wrap:nowrap;justify-content:center}
+    .meld{display:flex;gap:1px;background:rgba(0,0,0,0.3);padding:4px;border-radius:5px}
+    .meld .tile{width:28px;height:38px;font-size:22px;cursor:default}
     .meld .tile:hover{transform:none}
-    .my-hand{display:flex;gap:4px;padding:12px 15px;background:rgba(0,0,0,0.3);border-radius:12px;overflow-x:auto;max-width:100%;justify-content:flex-start}
-    .my-hand::-webkit-scrollbar{height:6px}
-    .my-hand::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.3);border-radius:3px}
-    .my-info{margin-top:8px;font-size:13px;color:#fff;background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:8px}
+    .my-hand{display:flex;gap:3px;padding:10px;background:rgba(0,0,0,0.3);border-radius:10px;overflow-x:auto;flex-wrap:nowrap;justify-content:center}
+    .my-hand::-webkit-scrollbar{height:4px}
+    .my-hand::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.3);border-radius:2px}
+    .my-info{margin-top:6px;font-size:12px;color:#fff;background:rgba(0,0,0,0.3);padding:3px 10px;border-radius:6px}
     
-    /* Tiles - Clean Simple Style */
+    /* Tiles - Smaller Clean Style */
     .tile{
-      width:44px;height:60px;
+      width:36px;height:50px;
       background:linear-gradient(180deg,#fffef8 0%,#f5f0e0 100%);
       border:1px solid #999;
-      border-radius:5px;
+      border-radius:4px;
       display:flex;align-items:center;justify-content:center;
-      font-size:36px;
+      font-size:28px;
       cursor:pointer;
       transition:transform 0.15s;
       user-select:none;
@@ -189,61 +189,61 @@
     
     /* Responsive - Mobile First */
     @media(max-width:700px){
-      .tile{width:38px;height:52px;font-size:30px}
-      .meld .tile{width:30px;height:42px;font-size:24px}
-      .discard-pile .tile{width:24px;height:32px;font-size:18px}
-      .discard-pile{max-width:180px;padding:8px}
-      .back-tile{width:18px;height:26px}
-      .opp.left .back-tile,.opp.right .back-tile{width:26px;height:18px}
-      .last-discard .tile{width:42px;height:58px;font-size:34px}
-      .my-hand{padding:10px 12px;gap:3px}
-      .my-section{bottom:65px}
-      .actions .btn{padding:8px 10px;min-width:50px}
-      .actions .btn .cn{font-size:15px}
-      .actions .btn .en{font-size:8px}
-      .game-info .wind{font-size:28px}
-      .game-info .wall{font-size:12px;padding:4px 10px}
-      .opp-name{font-size:10px;padding:2px 8px}
-      .center-area{top:40%}
-      .opp.top{top:50px}
-    }
-    
-    @media(max-width:480px){
-      .tile{width:32px;height:44px;font-size:26px}
+      .tile{width:32px;height:44px;font-size:24px}
       .meld .tile{width:26px;height:36px;font-size:20px}
-      .discard-pile .tile{width:20px;height:28px;font-size:15px}
-      .discard-pile{max-width:150px;padding:6px;min-height:45px}
-      .back-tile{width:14px;height:20px}
-      .opp.left .back-tile,.opp.right .back-tile{width:20px;height:14px}
-      .last-discard .tile{width:36px;height:50px;font-size:28px}
-      .my-hand{padding:8px 10px;gap:2px}
-      .my-section{bottom:60px}
-      .actions{padding:8px 5px;gap:4px}
-      .actions .btn{padding:6px 8px;min-width:42px}
-      .actions .btn .cn{font-size:13px}
+      .discard-pile .tile{width:22px;height:30px;font-size:16px}
+      .discard-pile{max-width:170px;padding:6px}
+      .back-tile{width:16px;height:22px}
+      .opp.left .back-tile,.opp.right .back-tile{width:22px;height:16px}
+      .last-discard .tile{width:36px;height:48px;font-size:26px}
+      .my-hand{padding:8px;gap:2px}
+      .my-section{bottom:65px}
+      .actions .btn{padding:6px 8px;min-width:45px}
+      .actions .btn .cn{font-size:14px}
       .actions .btn .en{font-size:7px}
       .game-info .wind{font-size:24px}
-      .game-info{gap:12px;margin-bottom:10px}
-      .center-area{top:38%}
-      .opp.top{top:45px}
-      .opp.left{left:3px}
-      .opp.right{right:3px}
+      .game-info .wall{font-size:11px;padding:3px 8px}
       .opp-name{font-size:9px;padding:2px 6px}
-      .game-header{padding:6px 8px}
-      .btn-leave,.btn-chat-toggle{padding:5px 8px;font-size:10px}
-      .win-tiles .tile{width:28px;height:38px;font-size:22px}
+      .center-area{top:40%}
+      .opp.top{top:45px}
     }
     
-    @media(max-width:360px){
-      .tile{width:28px;height:38px;font-size:22px}
+    @media(max-width:500px){
+      .tile{width:28px;height:38px;font-size:20px}
       .meld .tile{width:22px;height:30px;font-size:16px}
       .discard-pile .tile{width:18px;height:24px;font-size:13px}
-      .discard-pile{max-width:130px}
-      .last-discard .tile{width:32px;height:44px;font-size:24px}
+      .discard-pile{max-width:140px;padding:5px;min-height:40px}
+      .back-tile{width:14px;height:18px}
+      .opp.left .back-tile,.opp.right .back-tile{width:18px;height:14px}
+      .last-discard .tile{width:30px;height:40px;font-size:22px}
+      .my-hand{padding:6px;gap:2px}
+      .my-section{bottom:58px}
+      .actions{padding:6px 4px;gap:3px}
       .actions .btn{padding:5px 6px;min-width:38px}
-      .actions .btn .cn{font-size:11px}
+      .actions .btn .cn{font-size:12px}
       .actions .btn .en{font-size:6px}
-      .my-section{bottom:55px}
+      .game-info .wind{font-size:20px}
+      .game-info{gap:10px;margin-bottom:8px}
+      .center-area{top:38%}
+      .opp.top{top:40px}
+      .opp.left{left:2px}
+      .opp.right{right:2px}
+      .opp-name{font-size:8px;padding:2px 5px}
+      .game-header{padding:5px 6px}
+      .btn-leave,.btn-chat-toggle{padding:4px 6px;font-size:9px}
+      .win-tiles .tile{width:24px;height:32px;font-size:18px}
+    }
+    
+    @media(max-width:380px){
+      .tile{width:24px;height:32px;font-size:17px}
+      .meld .tile{width:20px;height:26px;font-size:14px}
+      .discard-pile .tile{width:16px;height:20px;font-size:11px}
+      .discard-pile{max-width:120px}
+      .last-discard .tile{width:26px;height:34px;font-size:18px}
+      .actions .btn{padding:4px 5px;min-width:32px}
+      .actions .btn .cn{font-size:10px}
+      .actions .btn .en{display:none}
+      .my-section{bottom:52px}
     }
   </style>
 </head>
