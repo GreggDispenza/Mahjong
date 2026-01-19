@@ -328,11 +328,20 @@ io.on('connection', (socket) => {
             return socket.emit('error', { message: '房間不存在 Room not found' });
         }
 
-        if (room.players.length >= 4) {
+        // Count human players only
+        const humanPlayers = room.players.filter(p => !p.isAI);
+        if (humanPlayers.length >= 4) {
             return socket.emit('error', { message: '房間已滿 Room is full' });
         }
 
-        room.players.push(user);
+        // Replace first AI player with the joining human
+        const aiIndex = room.players.findIndex(p => p.isAI);
+        if (aiIndex !== -1) {
+            room.players[aiIndex] = user; // Replace AI with human
+        } else {
+            room.players.push(user); // No AI to replace, just add
+        }
+        
         userSockets.set(user.id, socket.id);
         socket.join(roomCode);
 
@@ -547,10 +556,19 @@ function broadcastLobbies() {
 function getLobbies() {
     const lobbies = [];
     for (const [roomCode, room] of rooms.entries()) {
-        if (!room.game && room.players.length < 4) {
+        // Show rooms that:
+        // 1. Haven't started a game yet
+        // 2. Have less than 4 human players (AI players don't count)
+        const humanPlayers = room.players.filter(p => !p.isAI);
+        if (!room.game && humanPlayers.length < 4) {
             lobbies.push({
                 roomCode,
-                players: room.players.map(p => ({ displayName: p.displayName }))
+                playerCount: room.players.length,
+                humanCount: humanPlayers.length,
+                players: room.players.map(p => ({ 
+                    displayName: p.displayName,
+                    isAI: p.isAI || false
+                }))
             });
         }
     }
