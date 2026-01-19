@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>麻將 Mahjong Online</title>
-    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet"></noscript>
     <style>
         :root {
             --bg-cream: #faf8f3;
@@ -50,6 +51,12 @@
             background: var(--bg-cream);
             color: var(--text-dark);
             overflow-x: hidden;
+        }
+        
+        /* Make English text larger in UI elements */
+        button, .btn, input, select, textarea {
+            font-size: 1.15em;
+            letter-spacing: 0.3px;
         }
 
         /* Loading Screen */
@@ -143,10 +150,11 @@
             padding: 0.75rem;
             border: none;
             border-radius: 6px;
-            font-size: 1.1rem;
+            font-size: 1.2rem; /* Increased from 1.1rem */
             font-family: inherit;
             cursor: pointer;
             transition: all 0.3s;
+            word-spacing: 3px; /* Add space between Chinese and English */
         }
 
         .btn-primary {
@@ -1014,8 +1022,8 @@
             return '';
         }
 
-        // Initialize
-        window.addEventListener('load', async () => {
+        // Initialize - use DOMContentLoaded to not wait for fonts/images
+        document.addEventListener('DOMContentLoaded', async () => {
             socket = io({
                 transports: ['polling', 'websocket'],
                 upgrade: true,
@@ -1046,7 +1054,7 @@
             setTimeout(() => {
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('authScreen').style.display = 'block';
-            }, 1000);
+            }, 500);
         });
 
         // Socket listeners
