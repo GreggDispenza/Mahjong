@@ -300,9 +300,17 @@ io.on('connection', (socket) => {
 
     socket.on('createRoom', (user) => {
         const roomCode = generateRoomCode();
+        
+        // Auto-fill with AI players
+        const aiPlayers = [
+            { id: `ai-${roomCode}-1`, username: 'AI-South', displayName: '電腦南', isAI: true },
+            { id: `ai-${roomCode}-2`, username: 'AI-West', displayName: '電腦西', isAI: true },
+            { id: `ai-${roomCode}-3`, username: 'AI-North', displayName: '電腦北', isAI: true }
+        ];
+        
         const room = {
             roomCode,
-            players: [user],
+            players: [user, ...aiPlayers], // Human + 3 AI
             game: null,
             chatMessages: []
         };
