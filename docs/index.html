@@ -1045,6 +1045,19 @@
 
         // Socket listeners
         function setupSocketListeners() {
+            socket.on('connect', () => {
+                console.log('Socket connected:', socket.id);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Socket disconnected');
+            });
+
+            socket.on('error', (error) => {
+                console.error('Socket error:', error);
+                showError(error.message || '連線錯誤 Connection error');
+            });
+
             socket.on('roomUpdate', (room) => {
                 currentRoom = room;
                 if (document.getElementById('waitingScreen').style.display !== 'none') {
@@ -1174,7 +1187,12 @@
             document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('lobbyScreen').style.display = 'block';
 
-            document.getElementById('welcomeUser').textContent = `歡迎 ${currentUser.displayName}`;
+            // Normalize user object
+            if (currentUser.display_name && !currentUser.displayName) {
+                currentUser.displayName = currentUser.display_name;
+            }
+
+            document.getElementById('welcomeUser').textContent = `歡迎 ${currentUser.displayName || currentUser.display_name}`;
 
             // Load lobbies and leaderboard
             socket.emit('getLobbies');
@@ -1221,7 +1239,20 @@
         }
 
         function createRoom() {
-            socket.emit('createRoom', currentUser);
+            if (!currentUser) {
+                showError('請先登入 Please login first');
+                return;
+            }
+            
+            // Ensure user object has all required fields
+            const userForRoom = {
+                id: currentUser.id,
+                username: currentUser.username,
+                displayName: currentUser.display_name || currentUser.displayName,
+                isAI: false
+            };
+            
+            socket.emit('createRoom', userForRoom);
             socket.once('roomCreated', (room) => {
                 currentRoom = room;
                 showWaitingRoom();
@@ -1229,7 +1260,20 @@
         }
 
         function joinRoom(roomCode) {
-            socket.emit('joinRoom', { roomCode, user: currentUser });
+            if (!currentUser) {
+                showError('請先登入 Please login first');
+                return;
+            }
+            
+            // Ensure user object has all required fields
+            const userForRoom = {
+                id: currentUser.id,
+                username: currentUser.username,
+                displayName: currentUser.display_name || currentUser.displayName,
+                isAI: false
+            };
+            
+            socket.emit('joinRoom', { roomCode, user: userForRoom });
             socket.once('roomJoined', (room) => {
                 currentRoom = room;
                 showWaitingRoom();
@@ -1404,7 +1448,7 @@
             socket.emit('chatMessage', {
                 roomCode: currentRoom.roomCode,
                 message,
-                sender: currentUser.displayName
+                sender: currentUser.displayName || currentUser.display_name
             });
 
             input.value = '';
