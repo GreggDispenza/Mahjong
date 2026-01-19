@@ -1021,38 +1021,74 @@
             return '';
         }
 
-        // Initialize - use DOMContentLoaded to not wait for fonts/images
-        document.addEventListener('DOMContentLoaded', async () => {
-            socket = io({
-                transports: ['polling', 'websocket'],
-                upgrade: true,
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionAttempts: 5
-            });
-            setupSocketListeners();
+        // Initialize - handle both loading and already-loaded states
+        function initializeApp() {
+            console.log('Initializing app...');
+            
+            try {
+                socket = io({
+                    transports: ['polling', 'websocket'],
+                    upgrade: true,
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionAttempts: 5
+                });
+                console.log('Socket.IO initialized');
+                setupSocketListeners();
+                console.log('Socket listeners setup');
+            } catch (err) {
+                console.error('Socket initialization failed:', err);
+            }
             
             // Check if already logged in
             const token = localStorage.getItem('token');
             if (token) {
-                try {
-                    const res = await fetch('/api/me', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
+                console.log('Found token, checking auth...');
+                fetch('/api/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => {
                     if (res.ok) {
-                        currentUser = await res.json();
-                        showLobby();
-                        return;
+                        return res.json();
                     }
-                } catch (err) {
+                    throw new Error('Not authenticated');
+                })
+                .then(user => {
+                    currentUser = user;
+                    console.log('User authenticated, showing lobby');
+                    showLobby();
+                })
+                .catch(err => {
                     console.error('Auth check failed:', err);
-                }
+                    showAuthScreen();
+                });
+            } else {
+                showAuthScreen();
             }
-            
-            // Show auth screen
-            setTimeout(() => {
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('authScreen').style.display = 'block';
+        }
+        
+        function showAuthScreen() {
+            console.log('Showing auth screen...');
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('authScreen').style.display = 'block';
+            console.log('Auth screen displayed');
+        }
+        
+        // Run immediately if already loaded, otherwise wait for DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+            // DOM already loaded, run immediately
+            initializeApp();
+        }
+        
+        // Absolute fallback - force show auth screen after 3 seconds no matter what
+        setTimeout(() => {
+            if (document.getElementById('loadingScreen').style.display !== 'none') {
+                console.warn('Fallback triggered - forcing auth screen');
+                showAuthScreen();
+            }
+        }, 3000);
             }, 500);
         });
 
