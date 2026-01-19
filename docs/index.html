@@ -94,38 +94,38 @@
     .opp-name{font-size:12px;color:#fff;margin-bottom:5px;background:rgba(0,0,0,0.5);padding:4px 12px;border-radius:10px}
     .opp-tiles{display:flex;gap:2px}
     .opp.left .opp-tiles,.opp.right .opp-tiles{flex-direction:column}
-    .back-tile{width:14px;height:20px;background:linear-gradient(180deg,#2196f3,#1565c0);border-radius:2px;border:1px solid #0d47a1}
-    .opp.left .back-tile,.opp.right .back-tile{width:20px;height:14px}
+    .back-tile{width:18px;height:26px;background:linear-gradient(180deg,#2196f3,#1565c0);border-radius:2px;border:1px solid #0d47a1}
+    .opp.left .back-tile,.opp.right .back-tile{width:26px;height:18px}
     .opp-melds{display:flex;gap:3px;margin-top:4px}
-    .center-area{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:10}
-    .game-info{display:flex;gap:15px;justify-content:center;align-items:center;margin-bottom:10px}
-    .game-info .wind{font-size:28px;color:#ffd700;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
-    .game-info .wall{color:#fff;font-size:12px;background:rgba(0,0,0,0.3);padding:4px 10px;border-radius:12px}
-    .discard-pile{display:flex;flex-wrap:wrap;gap:1px;justify-content:center;max-width:160px;padding:6px;background:rgba(139,90,43,0.5);border-radius:6px;min-height:40px;border:1px solid rgba(139,90,43,0.6)}
-    .discard-pile .tile{width:18px;height:24px;font-size:14px;cursor:default}
+    .center-area{position:absolute;top:32%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:10}
+    .game-info{display:flex;gap:12px;justify-content:center;align-items:center;margin-bottom:8px}
+    .game-info .wind{font-size:26px;color:#ffd700;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
+    .game-info .wall{color:#fff;font-size:11px;background:rgba(0,0,0,0.3);padding:3px 8px;border-radius:10px}
+    .discard-pile{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;max-width:200px;padding:8px;background:rgba(139,90,43,0.5);border-radius:8px;min-height:50px;border:1px solid rgba(139,90,43,0.6)}
+    .discard-pile .tile{width:24px;height:32px;font-size:18px;cursor:default}
     .discard-pile .tile:hover{transform:none}
     .last-discard{margin-top:8px}
-    .last-discard .tile{width:32px;height:44px;font-size:24px;border:2px solid #ffd700;box-shadow:0 0 10px rgba(255,215,0,0.5);animation:pulse 1s infinite;cursor:default}
+    .last-discard .tile{width:44px;height:60px;font-size:34px;border:2px solid #ffd700;box-shadow:0 0 12px rgba(255,215,0,0.5);animation:pulse 1s infinite;cursor:default}
     .last-discard .tile:hover{transform:none}
     @keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,215,0,0.6)}50%{box-shadow:0 0 30px rgba(255,215,0,0.9)}}
-    .my-section{position:absolute;bottom:60px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 5px}
+    .my-section{position:absolute;bottom:55px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 3px}
     .my-melds{display:flex;gap:4px;margin-bottom:4px;flex-wrap:nowrap;justify-content:center}
     .meld{display:flex;gap:1px;background:rgba(0,0,0,0.3);padding:3px;border-radius:4px}
-    .meld .tile{width:24px;height:32px;font-size:18px;cursor:default}
+    .meld .tile{width:28px;height:38px;font-size:22px;cursor:default}
     .meld .tile:hover{transform:none}
-    .my-hand{display:flex;gap:2px;padding:6px 8px;background:rgba(0,0,0,0.3);border-radius:8px;overflow-x:auto;flex-wrap:nowrap;justify-content:center}
+    .my-hand{display:flex;gap:3px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:8px;overflow-x:auto;flex-wrap:nowrap;justify-content:center}
     .my-hand::-webkit-scrollbar{height:3px}
     .my-hand::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.3);border-radius:2px}
     .my-info{margin-top:4px;font-size:11px;color:#fff;background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:5px}
     
-    /* Tiles - Compact Style */
+    /* Tiles - Base Style */
     .tile{
-      width:30px;height:42px;
+      width:32px;height:44px;
       background:linear-gradient(180deg,#fffef8 0%,#f5f0e0 100%);
-      border:1px solid #999;
-      border-radius:3px;
+      border:1px solid #888;
+      border-radius:4px;
       display:flex;align-items:center;justify-content:center;
-      font-size:22px;
+      font-size:24px;
       cursor:pointer;
       transition:transform 0.15s;
       user-select:none;
@@ -138,20 +138,20 @@
     .tile.selected{transform:translateY(-10px);border-color:#d4af37;box-shadow:0 4px 12px rgba(212,175,55,0.5)}
     
     /* Action Buttons */
-    .actions{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:5px;padding:8px;background:linear-gradient(to top,rgba(30,70,32,0.95) 0%,transparent 100%)}
+    .actions{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:6px;padding:10px;background:linear-gradient(to top,rgba(30,70,32,0.95) 0%,transparent 100%)}
     .actions .btn{
-      padding:6px 10px;font-size:12px;
+      padding:8px 12px;font-size:13px;
       background:linear-gradient(145deg,#fff,#f0ead6);
       border:1px solid #b8a88a;color:#333;
       font-family:'Ma Shan Zheng','Noto Sans SC',sans-serif;
       display:flex;flex-direction:column;align-items:center;gap:1px;
-      min-width:45px;border-radius:6px;
+      min-width:50px;border-radius:8px;
     }
-    .actions .btn .cn{font-size:14px;color:#8b0000}
-    .actions .btn .en{font-size:8px;color:#666}
+    .actions .btn .cn{font-size:16px;color:#8b0000}
+    .actions .btn .en{font-size:9px;color:#666}
     .actions .btn:disabled{opacity:0.4;cursor:not-allowed}
     .actions .btn-win{background:linear-gradient(145deg,#ffe4e4,#ffd0d0);border-color:#8b0000}
-    .actions .btn-win .cn{color:#8b0000;font-size:16px}
+    .actions .btn-win .cn{color:#8b0000;font-size:18px}
     .actions .btn-skip{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.3);color:#fff}
     .actions .btn-skip .cn{color:#fff}
     .actions .btn-skip .en{color:rgba(255,255,255,0.7)}
@@ -187,41 +187,68 @@
     /* Music Toggle */
     .music-toggle{position:fixed;top:10px;right:10px;z-index:60;padding:8px 12px;background:rgba(255,255,255,0.9);border:none;border-radius:8px;cursor:pointer;font-size:16px}
     
-    /* Responsive */
-    @media(max-width:600px){
-      .tile{width:26px;height:36px;font-size:18px}
-      .meld .tile{width:20px;height:28px;font-size:14px}
-      .discard-pile .tile{width:16px;height:20px;font-size:12px}
-      .discard-pile{max-width:130px;padding:4px}
-      .back-tile{width:12px;height:16px}
-      .opp.left .back-tile,.opp.right .back-tile{width:16px;height:12px}
-      .last-discard .tile{width:28px;height:38px;font-size:20px}
-      .my-hand{padding:5px 6px;gap:2px}
-      .my-section{bottom:50px}
-      .actions{padding:6px;gap:4px}
-      .actions .btn{padding:5px 8px;min-width:38px}
-      .actions .btn .cn{font-size:12px}
-      .actions .btn .en{font-size:7px}
-      .game-info .wind{font-size:22px}
-      .game-info .wall{font-size:10px;padding:3px 6px}
+    /* Responsive - MOBILE PRIORITY */
+    @media(max-width:768px){
+      /* Player hand tiles - BIGGER */
+      .tile{width:36px;height:50px;font-size:28px}
+      .my-hand{gap:4px;padding:10px 12px}
+      .my-section{bottom:58px}
+      .meld .tile{width:30px;height:42px;font-size:22px}
+      
+      /* Center area - BIGGER */
+      .discard-pile .tile{width:28px;height:38px;font-size:20px}
+      .discard-pile{max-width:240px;padding:10px}
+      .last-discard .tile{width:52px;height:70px;font-size:40px}
       .center-area{top:30%}
-      .opp.top{top:40px}
-      .opp-name{font-size:8px;padding:2px 5px}
+      .game-info .wind{font-size:30px}
+      
+      /* Opponents - BIGGER */
+      .back-tile{width:22px;height:32px}
+      .opp.left .back-tile,.opp.right .back-tile{width:32px;height:22px}
+      .opp-name{font-size:11px;padding:3px 8px}
+      .opp.top{top:45px}
+      
+      /* Buttons - BIGGER */
+      .actions{padding:12px;gap:8px}
+      .actions .btn{padding:10px 14px;min-width:55px}
+      .actions .btn .cn{font-size:18px}
+      .actions .btn .en{font-size:10px}
     }
     
-    @media(max-width:400px){
-      .tile{width:22px;height:30px;font-size:15px}
-      .meld .tile{width:18px;height:24px;font-size:12px}
-      .discard-pile .tile{width:14px;height:18px;font-size:10px}
-      .discard-pile{max-width:110px}
-      .last-discard .tile{width:24px;height:32px;font-size:16px}
-      .my-section{bottom:45px}
-      .actions .btn{padding:4px 6px;min-width:32px}
-      .actions .btn .cn{font-size:10px}
-      .actions .btn .en{display:none}
+    @media(max-width:480px){
+      /* Player hand - fit 13 tiles */
+      .tile{width:32px;height:44px;font-size:24px}
+      .my-hand{gap:3px;padding:8px 10px}
+      .my-section{bottom:55px}
+      .meld .tile{width:26px;height:36px;font-size:18px}
+      
+      /* Center - still visible */
+      .discard-pile .tile{width:24px;height:32px;font-size:18px}
+      .discard-pile{max-width:200px;padding:8px}
+      .last-discard .tile{width:46px;height:62px;font-size:36px}
       .center-area{top:28%}
-      .game-info .wind{font-size:18px}
-      .win-tiles .tile{width:20px;height:28px;font-size:14px}
+      
+      /* Opponents */
+      .back-tile{width:18px;height:26px}
+      .opp.left .back-tile,.opp.right .back-tile{width:26px;height:18px}
+      .opp.top{top:40px}
+      .opp-name{font-size:10px}
+      
+      /* Buttons */
+      .actions .btn{padding:8px 12px;min-width:48px}
+      .actions .btn .cn{font-size:16px}
+      .actions .btn .en{font-size:9px}
+    }
+    
+    @media(max-width:380px){
+      .tile{width:28px;height:38px;font-size:20px}
+      .my-hand{gap:2px;padding:6px 8px}
+      .meld .tile{width:22px;height:30px;font-size:16px}
+      .discard-pile .tile{width:20px;height:26px;font-size:14px}
+      .last-discard .tile{width:40px;height:54px;font-size:30px}
+      .actions .btn .en{display:none}
+      .actions .btn{min-width:40px;padding:8px 10px}
+      .my-section{bottom:52px}
     }
   </style>
 </head>
@@ -252,7 +279,7 @@
         <form id="register-form" class="form" onsubmit="doRegister(event)">
           <input type="text" id="r-user" placeholder="Username 用戶名 (3+ chars)" required minlength="3">
           <input type="text" id="r-name" placeholder="Display Name 顯示名稱" required>
-          <input type="password" id="r-pass" placeholder="Password 密碼 (4+ chars)" required minlength="4">
+          <input type="password" id="r-pass" placeholder="Password 密碼 (6+ chars)" required minlength="6">
           <button type="submit" class="btn btn-primary">註冊 Create Account</button>
           <div class="error-msg" id="r-err"></div>
         </form>
