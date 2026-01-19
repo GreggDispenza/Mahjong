@@ -13,8 +13,13 @@ const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
         origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
-        credentials: true
-    }
+        credentials: true,
+        methods: ['GET', 'POST']
+    },
+    transports: ['polling', 'websocket'], // Polling first for Render
+    allowUpgrades: true,
+    pingTimeout: 60000,
+    pingInterval: 25000
 });
 
 // Middleware
