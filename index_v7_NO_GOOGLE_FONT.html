@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>麻將 Mahjong Online</title>
+    <!-- System fonts only - no external font loading -->
+    <style>
+        :root {
+            --bg-cream: #faf8f3;
+            --felt-green: #2d5016;
+            --tile-face: #f5f1e8;
+            --tile-shadow: rgba(0, 0, 0, 0.3);
+            --gold: #d4af37;
+            --red: #d32f2f;
+            --text-dark: #2c2416;
+            
+            /* Mobile-optimized sizes */
+            --tile-hand-w: 32px;
+            --tile-hand-h: 44px;
+            --tile-meld-w: 24px;
+            --tile-meld-h: 32px;
+            --tile-discard-w: 20px;
+            --tile-discard-h: 28px;
+            --tile-last-w: 34px;
+            --tile-last-h: 46px;
+        }
+
+        @media (min-width: 768px) {
+            :root {
+                --tile-hand-w: 40px;
+                --tile-hand-h: 56px;
+                --tile-meld-w: 30px;
+                --tile-meld-h: 42px;
+                --tile-discard-w: 26px;
+                --tile-discard-h: 36px;
+                --tile-last-w: 44px;
+                --tile-last-h: 60px;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
+            background: var(--bg-cream);
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+        
+        /* Make English text larger in UI elements */
+        button, .btn, input, select, textarea {
+            font-size: 1.15em;
+            letter-spacing: 0.3px;
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, var(--felt-green) 0%, #1a3010 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-title {
+            font-size: clamp(2rem, 8vw, 4rem);
+            color: var(--gold);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 1rem;
+        }
+
+        .loading-subtitle {
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Auth Screen */
+        #authScreen {
+            display: none;
+            min-height: 100vh;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--felt-green) 0%, #1a3010 100%);
+        }
+
+        .auth-container {
+            max-width: 400px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .auth-title {
+            font-size: 2rem;
+            text-align: center;
+            color: var(--felt-green);
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--felt-green);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.2rem; /* Increased from 1.1rem */
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+            word-spacing: 3px; /* Add space between Chinese and English */
+        }
+
+        .btn-primary {
+            background: var(--felt-green);
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-primary:hover {
+            background: #1a3010;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--felt-green);
+            border: 2px solid var(--felt-green);
+        }
+
+        .btn-secondary:hover {
+            background: var(--felt-green);
+            color: white;
+        }
+
+        .error-msg {
+            background: #ffebee;
+            color: var(--red);
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        /* Lobby Screen */
+        #lobbyScreen {
+            display: none;
+            min-height: 100vh;
+            padding: 1rem;
+            background: var(--bg-cream);
+        }
+
+        .lobby-header {
+            background: var(--felt-green);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .lobby-title {
+            font-size: clamp(1.2rem, 5vw, 1.8rem);
+        }
+
+        .lobby-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .btn-create {
+            background: var(--gold);
+            color: var(--text-dark);
+        }
+
+        .btn-logout {
+            background: var(--red);
+            color: white;
+        }
+
+        .lobby-content {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: 1fr;
+        }
+
+        @media (min-width: 768px) {
+            .lobby-content {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .rooms-panel, .leaderboard-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: var(--felt-green);
+            border-bottom: 2px solid var(--gold);
+            padding-bottom: 0.5rem;
+        }
+
+        .room-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-cream);
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .room-info {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .room-code {
+            font-weight: bold;
+            color: var(--felt-green);
+        }
+
+        .btn-join {
+            background: var(--felt-green);
+            color: white;
+        }
+
+        .leaderboard-list {
+            list-style: none;
+        }
+
+        .leaderboard-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-cream);
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: var(--gold);
+            margin-right: 0.5rem;
+        }
+
+        /* Waiting Screen */
+        #waitingScreen {
+            display: none;
+            min-height: 100vh;
+            padding: 1rem;
+            background: var(--bg-cream);
+        }
+
+        .waiting-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .waiting-title {
+            font-size: 2rem;
+            color: var(--felt-green);
+            margin-bottom: 1rem;
+        }
+
+        .room-code-display {
+            font-size: 2.5rem;
+            color: var(--gold);
+            margin: 1rem 0;
+            letter-spacing: 0.2em;
+        }
+
+        .players-waiting {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: var(--bg-cream);
+            border-radius: 8px;
+        }
+
+        .player-slot {
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .player-slot.filled {
+            background: linear-gradient(90deg, var(--felt-green) 0%, #2d5016 100%);
+            color: white;
+        }
+
+        .wind-label {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .btn-leave {
+            background: var(--red);
+            color: white;
+            margin-top: 1rem;
+        }
+
+        .btn-start {
+            background: var(--gold);
+            color: var(--text-dark);
+            margin-top: 1rem;
+        }
+
+        /* Game Screen */
+        #gameScreen {
+            display: none;
+            min-height: 100vh;
+            background: var(--felt-green);
+            padding: 0.5rem;
+        }
+
+        /* Mobile: Stack vertically, Desktop: Grid layout */
+        .game-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .game-layout {
+                display: grid;
+                grid-template-areas:
+                    "north north north"
+                    "west center east"
+                    "south south south";
+                grid-template-columns: 1fr 2fr 1fr;
+                grid-template-rows: auto 1fr auto;
+                gap: 0.5rem;
+                height: calc(100vh - 1rem);
+            }
+
+            .player-area-north { grid-area: north; }
+            .player-area-west { grid-area: west; }
+            .player-area-east { grid-area: east; }
+            .player-area-south { grid-area: south; }
+            .center-area { grid-area: center; }
+        }
+
+        .player-area {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 0.5rem;
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .player-name {
+            color: white;
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
+            font-weight: bold;
+        }
+
+        .player-score {
+            color: var(--gold);
+            font-size: clamp(0.85rem, 2.5vw, 1rem);
+        }
+
+        .player-wind {
+            background: var(--gold);
+            color: var(--text-dark);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .player-area.active {
+            background: rgba(212, 175, 55, 0.2);
+            border: 2px solid var(--gold);
+        }
+
+        /* Simplified Mobile Tiles */
+        .tiles-container {
+            display: flex;
+            gap: 2px;
+            overflow-x: auto;
+            padding: 0.25rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Hide scrollbar but keep functionality */
+        .tiles-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .tiles-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        .tile {
+            background: var(--tile-face);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            box-shadow: 2px 2px 4px var(--tile-shadow);
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .tile:hover {
+            transform: translateY(-3px);
+            box-shadow: 3px 3px 6px var(--tile-shadow);
+        }
+
+        .tile.hand-tile {
+            width: var(--tile-hand-w);
+            height: var(--tile-hand-h);
+            font-size: clamp(1.2rem, 4vw, 1.6rem);
+        }
+
+        .tile.meld-tile {
+            width: var(--tile-meld-w);
+            height: var(--tile-meld-h);
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+        }
+
+        .tile.discard-tile {
+            width: var(--tile-discard-w);
+            height: var(--tile-discard-h);
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
+        }
+
+        .tile.last-discard {
+            width: var(--tile-last-w);
+            height: var(--tile-last-h);
+            font-size: clamp(1rem, 3.5vw, 1.4rem);
+            border: 2px solid var(--red);
+            box-shadow: 0 0 10px rgba(211, 47, 47, 0.5);
+        }
+
+        /* Better tile characters - Unicode improvements */
+        .tile-char { color: #1a1a1a; }
+        .tile-dot { color: #2196f3; }
+        .tile-bamboo { color: #4caf50; }
+        .tile-wind { color: #ff5722; }
+        .tile-dragon { color: #d32f2f; }
+        
+        /* Center discard area */
+        .center-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .discard-area {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 0.5rem;
+            flex: 1;
+            min-height: 150px;
+        }
+
+        .discard-title {
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.8;
+        }
+
+        .discards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(var(--tile-discard-w), 1fr));
+            gap: 3px;
+            justify-items: center;
+        }
+
+        .game-status {
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 6px;
+            text-align: center;
+            font-size: clamp(0.85rem, 3vw, 1rem);
+        }
+
+        /* Action buttons - Mobile optimized */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .btn-action {
+            padding: 0.75rem 0.5rem;
+            border: 2px solid white;
+            border-radius: 6px;
+            background: rgba(212, 175, 55, 0.9);
+            color: var(--text-dark);
+            font-family: inherit;
+            font-size: clamp(0.85rem, 3vw, 1rem);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-action:not(:disabled):hover {
+            background: var(--gold);
+            transform: scale(1.05);
+        }
+
+        .btn-action:not(:disabled):active {
+            transform: scale(0.95);
+        }
+
+        /* Melds area - Mobile compact */
+        .melds-area {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+
+        .meld-group {
+            display: flex;
+            gap: 2px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.25rem;
+            border-radius: 4px;
+        }
+
+        /* Chat panel - Optimized for speed */
+        .chat-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: min(350px, 90vw);
+            background: white;
+            box-shadow: -4px 0 12px rgba(0,0,0,0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-panel.open {
+            transform: translateX(0);
+        }
+
+        .chat-header {
+            background: var(--felt-green);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-close-chat {
+            background: var(--red);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .chat-message {
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            background: var(--bg-cream);
+        }
+
+        .chat-message.ai {
+            background: #e3f2fd;
+        }
+
+        .chat-sender {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .chat-input-area {
+            padding: 1rem;
+            border-top: 1px solid #ddd;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        .btn-send-chat {
+            background: var(--felt-green);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-toggle-chat {
+            position: fixed;
+            right: 1rem;
+            top: 1rem;
+            background: var(--gold);
+            color: var(--text-dark);
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 999;
+            font-family: inherit;
+            font-size: 1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        /* Win Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            color: var(--gold);
+            margin-bottom: 1rem;
+        }
+
+        .modal-winner {
+            font-size: 1.5rem;
+            color: var(--felt-green);
+            margin-bottom: 1.5rem;
+        }
+
+        .final-scores {
+            background: var(--bg-cream);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .score-row:last-child {
+            border-bottom: none;
+        }
+
+        .btn-close-modal {
+            background: var(--felt-green);
+            color: white;
+            width: 100%;
+        }
+
+        /* Utility classes */
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 380px) {
+            .tile.hand-tile {
+                font-size: 1rem;
+            }
+            .action-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <div class="loading-title">🀄 麻將</div>
+        <div class="loading-subtitle">Mahjong Online</div>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Auth Screen -->
+    <div id="authScreen">
+        <div class="auth-container">
+            <h1 class="auth-title">🀄 麻將 Mahjong</h1>
+            <div id="errorMsg" class="error-msg"></div>
+            
+            <div id="loginForm">
+                <div class="input-group">
+                    <label>用戶名 Username:</label>
+                    <input type="text" id="loginUsername" autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <label>密碼 Password:</label>
+                    <input type="password" id="loginPassword" autocomplete="current-password">
+                </div>
+                <button class="btn btn-primary" onclick="login()">登入 Login</button>
+                <button class="btn btn-secondary" onclick="showRegister()">註冊 Register</button>
+            </div>
+
+            <div id="registerForm" style="display:none;">
+                <div class="input-group">
+                    <label>用戶名 Username:</label>
+                    <input type="text" id="regUsername" autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <label>顯示名稱 Display Name:</label>
+                    <input type="text" id="regDisplayName" autocomplete="name">
+                </div>
+                <div class="input-group">
+                    <label>密碼 Password:</label>
+                    <input type="password" id="regPassword" autocomplete="new-password">
+                </div>
+                <button class="btn btn-primary" onclick="register()">註冊 Register</button>
+                <button class="btn btn-secondary" onclick="showLogin()">返回登入 Back to Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobbyScreen">
+        <div class="lobby-header">
+            <div class="lobby-title">🀄 麻將大廳 Mahjong Lobby</div>
+            <div class="lobby-actions">
+                <span id="welcomeUser" style="color: white;"></span>
+                <button class="btn-small btn-create" onclick="createRoom()">建立房間 Create Room</button>
+                <button class="btn-small btn-logout" onclick="logout()">登出 Logout</button>
+            </div>
+        </div>
+
+        <div class="lobby-content">
+            <div class="rooms-panel">
+                <h2 class="panel-title">可用房間 Available Rooms</h2>
+                <div id="roomsList"></div>
+            </div>
+
+            <div class="leaderboard-panel">
+                <h2 class="panel-title">排行榜 Leaderboard</h2>
+                <ul id="leaderboardList" class="leaderboard-list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting Screen -->
+    <div id="waitingScreen">
+        <div class="waiting-container">
+            <h1 class="waiting-title">等待玩家 Waiting for Players</h1>
+            <div>房間代碼 Room Code:</div>
+            <div id="roomCodeDisplay" class="room-code-display"></div>
+            
+            <div class="players-waiting" id="playersWaiting"></div>
+
+            <button id="startGameBtn" class="btn btn-start" onclick="startGame()" style="display:none;">
+                開始遊戲 Start Game
+            </button>
+            <button class="btn btn-leave" onclick="leaveRoom()">離開房間 Leave Room</button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen">
+        <button class="btn-toggle-chat" onclick="toggleChat()">💬 聊天 Chat</button>
+
+        <div class="game-layout">
+            <!-- North Player (Opponent) -->
+            <div class="player-area player-area-north" id="playerNorth">
+                <div class="player-info">
+                    <span class="player-name" id="nameNorth"></span>
+                    <span class="player-wind" id="windNorth"></span>
+                    <span class="player-score" id="scoreNorth"></span>
+                </div>
+                <div class="melds-area" id="meldsNorth"></div>
+                <div class="tiles-container" id="tilesNorth"></div>
+            </div>
+
+            <!-- West Player (Opponent) -->
+            <div class="player-area player-area-west" id="playerWest">
+                <div class="player-info">
+                    <span class="player-name" id="nameWest"></span>
+                    <span class="player-wind" id="windWest"></span>
+                    <span class="player-score" id="scoreWest"></span>
+                </div>
+                <div class="melds-area" id="meldsWest"></div>
+                <div class="tiles-container" id="tilesWest"></div>
+            </div>
+
+            <!-- Center Area (Discards) -->
+            <div class="center-area">
+                <div class="discard-area">
+                    <div class="discard-title">棄牌區 Discards</div>
+                    <div class="discards-grid" id="discardsCenter"></div>
+                </div>
+                <div class="game-status" id="gameStatus">等待開始... Waiting to start...</div>
+            </div>
+
+            <!-- East Player (Opponent) -->
+            <div class="player-area player-area-east" id="playerEast">
+                <div class="player-info">
+                    <span class="player-name" id="nameEast"></span>
+                    <span class="player-wind" id="windEast"></span>
+                    <span class="player-score" id="scoreEast"></span>
+                </div>
+                <div class="melds-area" id="meldsEast"></div>
+                <div class="tiles-container" id="tilesEast"></div>
+            </div>
+
+            <!-- South Player (You) -->
+            <div class="player-area player-area-south" id="playerSouth">
+                <div class="player-info">
+                    <span class="player-name" id="nameSouth"></span>
+                    <span class="player-wind" id="windSouth"></span>
+                    <span class="player-score" id="scoreSouth"></span>
+                </div>
+                <div class="melds-area" id="meldsSouth"></div>
+                <div class="tiles-container" id="tilesSouth"></div>
+                <div class="action-buttons">
+                    <button class="btn-action" id="btnChow" onclick="claimChow()" disabled>
+                        吃<br>Chow
+                    </button>
+                    <button class="btn-action" id="btnPung" onclick="claimPung()" disabled>
+                        碰<br>Pung
+                    </button>
+                    <button class="btn-action" id="btnKong" onclick="claimKong()" disabled>
+                        槓<br>Kong
+                    </button>
+                    <button class="btn-action" id="btnMahjong" onclick="declareMahjong()" disabled>
+                        胡<br>Mahjong
+                    </button>
+                    <button class="btn-action" id="btnSkip" onclick="skipClaim()" disabled>
+                        過<br>Skip
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel" id="chatPanel">
+            <div class="chat-header">
+                <h3>💬 聊天 Chat</h3>
+                <button class="btn-close-chat" onclick="toggleChat()">關閉 Close</button>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <input type="text" class="chat-input" id="chatInput" placeholder="輸入訊息... Type message..." maxlength="200">
+                <button class="btn-send-chat" onclick="sendChat()">發送 Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2 class="modal-title">🎉 遊戲結束 Game Over</h2>
+            <div class="modal-winner" id="winnerName"></div>
+            <div class="final-scores" id="finalScores"></div>
+            <button class="btn btn-close-modal" onclick="closeWinModal()">返回大廳 Return to Lobby</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Global state
+        let socket;
+        let currentUser = null;
+        let currentRoom = null;
+        let gameState = null;
+        let selectedTile = null;
+
+        // Improved tile display mapping
+        const TILE_DISPLAY = {
+            // Characters (萬)
+            '1m': '一', '2m': '二', '3m': '三', '4m': '四', '5m': '五',
+            '6m': '六', '7m': '七', '8m': '八', '9m': '九',
+            // Dots (筒)
+            '1p': '🀙', '2p': '🀚', '3p': '🀛', '4p': '🀜', '5p': '🀝',
+            '6p': '🀞', '7p': '🀟', '8p': '🀠', '9p': '🀡',
+            // Bamboo (條)
+            '1s': '🀐', '2s': '🀑', '3s': '🀒', '4s': '🀓', '5s': '🀔',
+            '6s': '🀕', '7s': '🀖', '8s': '🀗', '9s': '🀘',
+            // Winds
+            '1z': '東', '2z': '南', '3z': '西', '4z': '北',
+            // Dragons
+            '5z': '中', '6z': '發', '7z': '白'
+        };
+
+        // Get tile CSS class for styling
+        function getTileClass(tile) {
+            if (tile.endsWith('m')) return 'tile-char';
+            if (tile.endsWith('p')) return 'tile-dot';
+            if (tile.endsWith('s')) return 'tile-bamboo';
+            if (['1z','2z','3z','4z'].includes(tile)) return 'tile-wind';
+            if (['5z','6z','7z'].includes(tile)) return 'tile-dragon';
+            return '';
+        }
+
+        // Initialize - use DOMContentLoaded to not wait for fonts/images
+        document.addEventListener('DOMContentLoaded', async () => {
+            socket = io({
+                transports: ['polling', 'websocket'],
+                upgrade: true,
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: 5
+            });
+            setupSocketListeners();
+            
+            // Check if already logged in
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const res = await fetch('/api/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        currentUser = await res.json();
+                        showLobby();
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Auth check failed:', err);
+                }
+            }
+            
+            // Show auth screen
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('authScreen').style.display = 'block';
+            }, 500);
+        });
+
+        // Socket listeners
+        function setupSocketListeners() {
+            socket.on('connect', () => {
+                console.log('Socket connected:', socket.id);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Socket disconnected');
+            });
+
+            socket.on('error', (error) => {
+                console.error('Socket error:', error);
+                showError(error.message || '連線錯誤 Connection error');
+            });
+
+            socket.on('roomUpdate', (room) => {
+                currentRoom = room;
+                if (document.getElementById('waitingScreen').style.display !== 'none') {
+                    updateWaitingRoom(room);
+                }
+            });
+
+            socket.on('gameStart', (state) => {
+                gameState = state;
+                showGame();
+                updateGameUI();
+            });
+
+            socket.on('gameUpdate', (state) => {
+                gameState = state;
+                updateGameUI();
+            });
+
+            socket.on('gameOver', (result) => {
+                showWinModal(result);
+            });
+
+            socket.on('chatMessage', (msg) => {
+                addChatMessage(msg);
+            });
+
+            socket.on('lobbiesUpdate', (lobbies) => {
+                updateRoomsList(lobbies);
+            });
+        }
+
+        // Auth functions
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+
+        function showLogin() {
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+        }
+
+        async function register() {
+            const username = document.getElementById('regUsername').value.trim();
+            const displayName = document.getElementById('regDisplayName').value.trim();
+            const password = document.getElementById('regPassword').value;
+
+            if (!username || !displayName || !password) {
+                showError('所有欄位必填 All fields required');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, displayName, password })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    currentUser = data.user;
+                    showLobby();
+                } else {
+                    showError(data.error);
+                }
+            } catch (err) {
+                showError('註冊失敗 Registration failed');
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showError('所有欄位必填 All fields required');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    currentUser = data.user;
+                    showLobby();
+                } else {
+                    showError(data.error);
+                }
+            } catch (err) {
+                showError('登入失敗 Login failed');
+            }
+        }
+
+        async function logout() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            }
+            localStorage.removeItem('token');
+            currentUser = null;
+            location.reload();
+        }
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+        }
+
+        // Lobby functions
+        async function showLobby() {
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('lobbyScreen').style.display = 'block';
+
+            // Normalize user object
+            if (currentUser.display_name && !currentUser.displayName) {
+                currentUser.displayName = currentUser.display_name;
+            }
+
+            document.getElementById('welcomeUser').textContent = `歡迎 ${currentUser.displayName || currentUser.display_name}`;
+
+            // Load lobbies and leaderboard
+            socket.emit('getLobbies');
+            loadLeaderboard();
+        }
+
+        async function loadLeaderboard() {
+            try {
+                const res = await fetch('/api/leaderboard');
+                const data = await res.json();
+                const list = document.getElementById('leaderboardList');
+                list.innerHTML = data.map((player, i) => `
+                    <li class="leaderboard-item">
+                        <div>
+                            <span class="rank">#${i + 1}</span>
+                            ${player.display_name}
+                        </div>
+                        <div>🏆 ${player.games_won}勝 ${player.total_score}分</div>
+                    </li>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load leaderboard:', err);
+            }
+        }
+
+        function updateRoomsList(lobbies) {
+            const list = document.getElementById('roomsList');
+            if (lobbies.length === 0) {
+                list.innerHTML = '<p>沒有可用房間 No rooms available</p>';
+                return;
+            }
+
+            list.innerHTML = lobbies.map(room => `
+                <div class="room-item">
+                    <div class="room-info">
+                        <div class="room-code">${room.roomCode}</div>
+                        <div>${room.players.length}/4 玩家</div>
+                    </div>
+                    <button class="btn-small btn-join" onclick="joinRoom('${room.roomCode}')">
+                        加入 Join
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function createRoom() {
+            if (!currentUser) {
+                showError('請先登入 Please login first');
+                return;
+            }
+            
+            // Ensure user object has all required fields
+            const userForRoom = {
+                id: currentUser.id,
+                username: currentUser.username,
+                displayName: currentUser.display_name || currentUser.displayName,
+                isAI: false
+            };
+            
+            socket.emit('createRoom', userForRoom);
+            socket.once('roomCreated', (room) => {
+                currentRoom = room;
+                showWaitingRoom();
+            });
+        }
+
+        function joinRoom(roomCode) {
+            if (!currentUser) {
+                showError('請先登入 Please login first');
+                return;
+            }
+            
+            // Ensure user object has all required fields
+            const userForRoom = {
+                id: currentUser.id,
+                username: currentUser.username,
+                displayName: currentUser.display_name || currentUser.displayName,
+                isAI: false
+            };
+            
+            socket.emit('joinRoom', { roomCode, user: userForRoom });
+            socket.once('roomJoined', (room) => {
+                currentRoom = room;
+                showWaitingRoom();
+            });
+        }
+
+        // Waiting room
+        function showWaitingRoom() {
+            document.getElementById('lobbyScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'block';
+            document.getElementById('roomCodeDisplay').textContent = currentRoom.roomCode;
+            updateWaitingRoom(currentRoom);
+        }
+
+        function updateWaitingRoom(room) {
+            const container = document.getElementById('playersWaiting');
+            const winds = ['東 East', '南 South', '西 West', '北 North'];
+            
+            container.innerHTML = winds.map((wind, i) => {
+                const player = room.players[i];
+                return `
+                    <div class="player-slot ${player ? 'filled' : ''}">
+                        <span class="wind-label">${wind}</span>
+                        <span>${player ? player.displayName : '等待中... Waiting...'}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // Show start button if room is full and user is host
+            const isHost = room.players[0]?.id === currentUser.id;
+            const isFull = room.players.length === 4;
+            document.getElementById('startGameBtn').style.display = (isHost && isFull) ? 'block' : 'none';
+        }
+
+        function startGame() {
+            socket.emit('startGame', currentRoom.roomCode);
+        }
+
+        function leaveRoom() {
+            socket.emit('leaveRoom', currentRoom.roomCode);
+            currentRoom = null;
+            showLobby();
+        }
+
+        // Game functions
+        function showGame() {
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+        }
+
+        function updateGameUI() {
+            if (!gameState) return;
+
+            const playerIndex = gameState.players.findIndex(p => p.id === currentUser.id);
+            const positions = ['south', 'west', 'north', 'east'];
+            
+            // Update each player area
+            gameState.players.forEach((player, i) => {
+                const relativePos = positions[(4 + i - playerIndex) % 4];
+                const isActive = gameState.currentPlayerIndex === i;
+                
+                // Update player info
+                document.getElementById(`name${capitalize(relativePos)}`).textContent = player.displayName;
+                document.getElementById(`wind${capitalize(relativePos)}`).textContent = player.wind;
+                document.getElementById(`score${capitalize(relativePos)}`).textContent = `${player.score}分`;
+                
+                // Update active state
+                const playerArea = document.getElementById(`player${capitalize(relativePos)}`);
+                if (isActive) {
+                    playerArea.classList.add('active');
+                } else {
+                    playerArea.classList.remove('active');
+                }
+
+                // Update tiles
+                const tilesContainer = document.getElementById(`tiles${capitalize(relativePos)}`);
+                if (relativePos === 'south') {
+                    // Show own tiles
+                    tilesContainer.innerHTML = player.hand.map((tile, idx) => 
+                        `<div class="tile hand-tile ${getTileClass(tile)}" onclick="selectTile(${idx})">${TILE_DISPLAY[tile] || tile}</div>`
+                    ).join('');
+                } else {
+                    // Show tile backs for opponents
+                    tilesContainer.innerHTML = Array(player.hand.length).fill(
+                        '<div class="tile hand-tile" style="background: linear-gradient(135deg, #8b7355 0%, #6d5a47 100%);">🀫</div>'
+                    ).join('');
+                }
+
+                // Update melds
+                const meldsContainer = document.getElementById(`melds${capitalize(relativePos)}`);
+                meldsContainer.innerHTML = player.melds.map(meld => 
+                    `<div class="meld-group">${meld.tiles.map(t => 
+                        `<div class="tile meld-tile ${getTileClass(t)}">${TILE_DISPLAY[t] || t}</div>`
+                    ).join('')}</div>`
+                ).join('');
+            });
+
+            // Update discards
+            const discardsContainer = document.getElementById('discardsCenter');
+            discardsContainer.innerHTML = gameState.discardPile.map((tile, idx) => {
+                const isLast = idx === gameState.discardPile.length - 1;
+                return `<div class="tile ${isLast ? 'last-discard' : 'discard-tile'} ${getTileClass(tile)}">${TILE_DISPLAY[tile] || tile}</div>`;
+            }).join('');
+
+            // Update status
+            const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+            document.getElementById('gameStatus').textContent = 
+                `${currentPlayer.displayName} 的回合 ${currentPlayer.wind}`;
+
+            // Update action buttons
+            updateActionButtons();
+        }
+
+        function updateActionButtons() {
+            const isMyTurn = gameState.players[gameState.currentPlayerIndex].id === currentUser.id;
+            const playerIndex = gameState.players.findIndex(p => p.id === currentUser.id);
+            
+            // Disable all claim buttons by default
+            ['btnChow', 'btnPung', 'btnKong', 'btnMahjong', 'btnSkip'].forEach(id => {
+                document.getElementById(id).disabled = true;
+            });
+
+            // Enable relevant buttons based on game state
+            if (gameState.claimWindow && gameState.claimWindow.players.includes(playerIndex)) {
+                const claims = gameState.claimWindow.validClaims[playerIndex];
+                if (claims.canChow) document.getElementById('btnChow').disabled = false;
+                if (claims.canPung) document.getElementById('btnPung').disabled = false;
+                if (claims.canKong) document.getElementById('btnKong').disabled = false;
+                if (claims.canMahjong) document.getElementById('btnMahjong').disabled = false;
+                document.getElementById('btnSkip').disabled = false;
+            }
+        }
+
+        function selectTile(index) {
+            const isMyTurn = gameState.players[gameState.currentPlayerIndex].id === currentUser.id;
+            if (!isMyTurn) return;
+
+            selectedTile = index;
+            socket.emit('discardTile', { roomCode: currentRoom.roomCode, tileIndex: index });
+        }
+
+        function claimChow() {
+            socket.emit('claimChow', { roomCode: currentRoom.roomCode });
+        }
+
+        function claimPung() {
+            socket.emit('claimPung', { roomCode: currentRoom.roomCode });
+        }
+
+        function claimKong() {
+            socket.emit('claimKong', { roomCode: currentRoom.roomCode });
+        }
+
+        function declareMahjong() {
+            socket.emit('declareMahjong', { roomCode: currentRoom.roomCode });
+        }
+
+        function skipClaim() {
+            socket.emit('skipClaim', { roomCode: currentRoom.roomCode });
+        }
+
+        // Chat functions
+        function toggleChat() {
+            document.getElementById('chatPanel').classList.toggle('open');
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            socket.emit('chatMessage', {
+                roomCode: currentRoom.roomCode,
+                message,
+                sender: currentUser.displayName || currentUser.display_name
+            });
+
+            input.value = '';
+        }
+
+        function addChatMessage(msg) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `chat-message ${msg.isAI ? 'ai' : ''}`;
+            div.innerHTML = `
+                <div class="chat-sender">${msg.sender}</div>
+                <div>${msg.message}</div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Win modal
+        function showWinModal(result) {
+            document.getElementById('winnerName').textContent = 
+                `勝利者 Winner: ${result.winner.displayName} (${result.winner.wind})`;
+            
+            document.getElementById('finalScores').innerHTML = result.finalScores.map(p => 
+                `<div class="score-row">
+                    <span>${p.displayName}</span>
+                    <span>${p.score}分</span>
+                </div>`
+            ).join('');
+
+            document.getElementById('winModal').classList.add('show');
+        }
+
+        function closeWinModal() {
+            document.getElementById('winModal').classList.remove('show');
+            socket.emit('leaveRoom', currentRoom.roomCode);
+            currentRoom = null;
+            gameState = null;
+            showLobby();
+        }
+
+        // Utility
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Chat input enter key
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') sendChat();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
