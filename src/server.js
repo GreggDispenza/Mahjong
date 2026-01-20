@@ -67,6 +67,10 @@ function sanitizeInput(str) {
 // JWT secret
 const JWT_SECRET = process.env.JWT_SECRET || 'mahjong-secret-key-change-in-production';
 
+if (!process.env.JWT_SECRET) {
+    console.warn('⚠️  WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable in production!');
+}
+
 // Auth middleware
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -618,14 +622,32 @@ function broadcastLobbies() {
 
 function getLobbies() {
     const lobbies = [];
+    const gamesInProgress = [];
+    
     for (const [roomCode, room] of rooms.entries()) {
-        // Show rooms that:
-        // 1. Haven't started a game yet
-        // 2. Have less than 4 human players (AI players don't count)
         const humanPlayers = room.players.filter(p => !p.isAI);
-        if (!room.game && humanPlayers.length < 4) {
+        
+        if (room.game && !room.game.gameOver) {
+            // Game in progress - show in separate list
+            gamesInProgress.push({
+                roomCode,
+                status: 'playing',
+                playerCount: room.players.length,
+                humanCount: humanPlayers.length,
+                players: room.players.map(p => ({ 
+                    displayName: p.displayName,
+                    isAI: p.isAI || false,
+                    wind: p.wind || ''
+                })),
+                currentTurn: room.game.currentPlayerIndex,
+                currentPlayer: room.game.players[room.game.currentPlayerIndex].displayName,
+                discardCount: room.game.discardPile?.length || 0
+            });
+        } else if (!room.game && humanPlayers.length < 4) {
+            // Waiting for players - show in lobby
             lobbies.push({
                 roomCode,
+                status: 'waiting',
                 playerCount: room.players.length,
                 humanCount: humanPlayers.length,
                 players: room.players.map(p => ({ 
@@ -635,7 +657,10 @@ function getLobbies() {
             });
         }
     }
-    return lobbies;
+    return { 
+        waiting: lobbies,
+        playing: gamesInProgress
+    };
 }
 
 function generateRoomCode() {
