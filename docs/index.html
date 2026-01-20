@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>麻將/麻雀 Mahjong Online</title>
+    <title>麻將 Mahjong Online</title>
     <!-- System fonts only - no external font loading -->
     <style>
         :root {
@@ -712,7 +712,7 @@
             right: 1rem;
             top: 1rem;
             background: var(--gold);
-            color: var(--text-dark);
+            color: white;
             border: none;
             padding: 0.75rem 1rem;
             border-radius: 6px;
@@ -721,6 +721,45 @@
             font-family: inherit;
             font-size: 1rem;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        
+        .btn-toggle-chat.has-unread {
+            animation: blink-red 1s infinite;
+        }
+        
+        @keyframes blink-red {
+            0%, 100% { 
+                background: var(--gold);
+                color: white;
+            }
+            50% { 
+                background: #ff0000;
+                color: white;
+                box-shadow: 0 4px 16px rgba(255, 0, 0, 0.6);
+            }
+        }
+        
+        .btn-logout-game {
+            position: fixed;
+            right: 1rem;
+            top: 4rem;
+            background: #d32f2f;
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 999;
+            font-family: inherit;
+            font-size: 1rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        
+        .btn-logout-game:hover {
+            background: #b71c1c;
+            transform: translateY(-2px);
         }
 
         /* Win Modal */
@@ -887,7 +926,8 @@
 
     <!-- Game Screen -->
     <div id="gameScreen">
-        <button class="btn-toggle-chat" onclick="toggleChat()">💬 聊天 Chat</button>
+        <button class="btn-toggle-chat" id="chatToggleBtn" onclick="toggleChat()">💬 聊天 Chat</button>
+        <button class="btn-logout-game" onclick="logoutFromGame()">🚪 登出 Logout</button>
 
         <div class="game-layout">
             <!-- North Player (Opponent) -->
@@ -1129,6 +1169,22 @@
 
             socket.on('chatMessage', (msg) => {
                 addChatMessage(msg);
+                
+                // If chat panel is closed, trigger blink notification
+                if (!chatPanelOpen) {
+                    document.getElementById('chatToggleBtn').classList.add('has-unread');
+                }
+            });
+            
+            socket.on('playerReplaced', (data) => {
+                // Show notification when player is replaced by AI
+                if (data.message) {
+                    addChatMessage({
+                        sender: 'System',
+                        message: data.message,
+                        timestamp: new Date()
+                    });
+                }
             });
 
             socket.on('lobbiesUpdate', (lobbies) => {
@@ -1482,8 +1538,41 @@
         }
 
         // Chat functions
+        let chatPanelOpen = false;
+
         function toggleChat() {
+            chatPanelOpen = !chatPanelOpen;
             document.getElementById('chatPanel').classList.toggle('open');
+            
+            // Clear unread indicator when opening chat
+            if (chatPanelOpen) {
+                document.getElementById('chatToggleBtn').classList.remove('has-unread');
+            }
+        }
+        
+        function logoutFromGame() {
+            if (!confirm('確定要登出嗎？AI將接替你的位置繼續遊戲。\nAre you sure? AI will replace you and continue the game.')) {
+                return;
+            }
+            
+            // If in active game, notify server for AI replacement
+            if (currentRoom && currentRoom.game) {
+                socket.emit('playerLogout', {
+                    roomCode: currentRoom.roomCode,
+                    userId: currentUser.id
+                });
+            }
+            
+            // Clear session
+            localStorage.removeItem('token');
+            currentUser = null;
+            currentRoom = null;
+            
+            // Return to auth screen
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('lobbyScreen').style.display = 'none';
+            showAuthScreen();
         }
 
         function sendChat() {
