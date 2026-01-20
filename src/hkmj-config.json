@@ -1,0 +1,37 @@
+File Name: hkmj-config.json This file defines the immutable laws of the game. Claude will use this as its "Bible" to prevent game fouls.
+
+{
+  "engine_metadata": {
+    "variant": "Hong Kong Old Style (HKOS)",
+    "tiles_total": 136,
+    "min_faan": 3,
+    "limit_points": 32,
+    "dead_wall_size": 16
+  },
+  "logic_constraints": {
+    "win_tile_count_formula": "total_tiles == 14 + count(KONG_MELDS)",
+    "exhaustive_draw_trigger": "IF live_wall.length == 0 AT turn_start THEN game_ends(DRAW)",
+    "dead_wall_logic": "IF kong_declared AND dead_wall.length == 0 THEN game_ends(DRAW)",
+    "furiten_logic": {
+      "trigger": "IF player_declines_win(tile) THEN player.is_furiten = true",
+      "reset": "IF player.discards_tile() THEN player.is_furiten = false",
+      "restriction": "IF player.is_furiten == true THEN CANNOT claim discard_win"
+    }
+  },
+  "claim_priority_tree": {
+    "P1": "WIN_HU (Needs 3+ Faan & NOT Furiten)",
+    "P2": "PUNG_OR_KONG (Needs pair/triplet in hand)",
+    "P3": "CHOW_CHI (Next player only)",
+    "tie_breaker": "closest_counter_clockwise_from_discarder"
+  },
+  "faan_lookup": {
+    "all_chows": 1,
+    "dragon_pung": 1,
+    "wind_pung_single": 1,
+    "wind_pung_double": 2,
+    "self_draw": 1,
+    "seven_pairs": 4,
+    "full_flush": 7,
+    "thirteen_orphans": 13
+  }
+}
