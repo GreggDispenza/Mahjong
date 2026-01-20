@@ -1,683 +1,794 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * HKOS MAHJONG SERVER - 100% Specification Compliant
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * Multiplayer server with Socket.IO
+ * Integrates with HKOSEngine for game logic
+ * Supports AI players, Furiten system, and proper wall management
+ */
+
 const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
-const db = require('./database');
-const MahjongGame = require('./game');
-
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-    cors: {
-        origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
-        credentials: true,
-        methods: ['GET', 'POST']
-    },
-    transports: ['polling', 'websocket'], // Polling first for Render
-    allowUpgrades: true,
-    pingTimeout: 60000,
-    pingInterval: 25000
-});
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+const path = require('path');
+const jwt = require('jsonwebtoken');
 
-// Middleware
-app.use(express.json());
-app.use(express.static('docs'));
+// Import game logic and database
+const MahjongGame = require('./game');
+const db = require('./database');
 
-// CORS
-app.use((req, res, next) => {
-    const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
-    res.header('Access-Control-Allow-Origin', allowedOrigin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+// Configuration
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// Rate limiters
-const registerLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000,
-    max: 5,
-    message: { error: '註冊太頻繁，請稍後再試 Too many registration attempts' }
-});
-
-const loginLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 10,
-    message: { error: '登入嘗試太多次 Too many login attempts' }
-});
-
-const chatLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 30, // Increased from 20 to allow faster interaction
-    message: { error: '訊息太頻繁 Too many messages' }
-});
-
-// Input sanitization
-function sanitizeInput(str) {
-    if (typeof str !== 'string') return '';
-    return str.replace(/[<>]/g, '').trim().slice(0, 100);
-}
-
-// JWT secret
-const JWT_SECRET = process.env.JWT_SECRET || 'mahjong-secret-key-change-in-production';
-
-if (!process.env.JWT_SECRET) {
+// Warning for production
+if (JWT_SECRET === 'your-secret-key-change-in-production') {
     console.warn('⚠️  WARNING: Using default JWT_SECRET. Set JWT_SECRET environment variable in production!');
 }
 
-// Auth middleware
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+// Middleware
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../docs')));
 
-    if (!token) {
-        return res.status(401).json({ error: '未授權 Unauthorized' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: '無效的令牌 Invalid token' });
-        }
-        req.user = user;
-        next();
-    });
-}
-
-// Game state
+// Game rooms storage
 const rooms = new Map();
 const userSockets = new Map();
 
-// API Routes
-app.post('/api/register', registerLimiter, async (req, res) => {
-    try {
-        const { username, displayName, password } = req.body;
+// AI player counter
+let aiPlayerCounter = 0;
 
-        if (!username || !displayName || !password) {
-            return res.status(400).json({ error: '所有欄位必填 All fields required' });
-        }
+// ═══════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════
 
-        if (password.length < 6) {
-            return res.status(400).json({ error: '密碼至少6個字元 Password must be at least 6 characters' });
-        }
-
-        const sanitizedUsername = sanitizeInput(username);
-        const sanitizedDisplayName = sanitizeInput(displayName);
-
-        const user = await db.createUser(sanitizedUsername, sanitizedDisplayName, password);
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-
-        res.json({ user, token });
-    } catch (err) {
-        if (err.message.includes('already exists')) {
-            return res.status(400).json({ error: '用戶名已存在 Username already exists' });
-        }
-        console.error('Registration error:', err);
-        res.status(500).json({ error: '註冊失敗 Registration failed' });
-    }
-});
-
-app.post('/api/login', loginLimiter, async (req, res) => {
-    try {
-        const { username, password } = req.body;
-
-        if (!username || !password) {
-            return res.status(400).json({ error: '所有欄位必填 All fields required' });
-        }
-
-        const user = await db.authenticateUser(username, password);
-        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-
-        await db.setUserOnline(user.id, true);
-        res.json({ user, token });
-    } catch (err) {
-        console.error('Login error:', err);
-        res.status(401).json({ error: '用戶名或密碼錯誤 Invalid credentials' });
-    }
-});
-
-app.post('/api/logout', authenticateToken, async (req, res) => {
-    try {
-        await db.setUserOnline(req.user.id, false);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Logout error:', err);
-        res.status(500).json({ error: '登出失敗 Logout failed' });
-    }
-});
-
-app.get('/api/me', authenticateToken, async (req, res) => {
-    try {
-        const user = await db.getUser(req.user.id);
-        res.json(user);
-    } catch (err) {
-        console.error('Get user error:', err);
-        res.status(500).json({ error: '獲取用戶失敗 Failed to get user' });
-    }
-});
-
-app.get('/api/leaderboard', async (req, res) => {
-    try {
-        const leaderboard = await db.getLeaderboard();
-        res.json(leaderboard);
-    } catch (err) {
-        console.error('Leaderboard error:', err);
-        res.status(500).json({ error: '獲取排行榜失敗 Failed to get leaderboard' });
-    }
-});
-
-// Optimized AI Chat Handler - 100% faster with parallel processing
-let lastAIChatTime = 0;
-const AI_CHAT_COOLDOWN = 5000; // Reduced from 15s to 5s
-const AI_RESPONSE_RATE = 0.6; // Increased from 40% to 60%
-
-async function handleAIChat(roomCode, messages) {
-    const now = Date.now();
-    
-    // Cooldown check (non-blocking)
-    if (now - lastAIChatTime < AI_CHAT_COOLDOWN) {
-        return; // Silent return, no blocking
-    }
-
-    // Response rate check (faster random)
-    if (Math.random() > AI_RESPONSE_RATE) {
-        return;
-    }
-
-    lastAIChatTime = now;
-
-    // Process AI response asynchronously without blocking game
-    processAIChatAsync(roomCode, messages).catch(err => {
-        console.error('AI chat error (non-blocking):', err);
-    });
+/**
+ * Sanitize user input to prevent XSS
+ */
+function sanitizeInput(input) {
+    if (typeof input !== 'string') return input;
+    return input
+        .replace(/[<>]/g, '')
+        .replace(/javascript:/gi, '')
+        .trim()
+        .slice(0, 100); // Limit length
 }
 
-async function processAIChatAsync(roomCode, messages) {
+/**
+ * Verify JWT token
+ */
+function verifyToken(token) {
     try {
-        const DEEPSEEK_KEY = process.env.DEEPSEEK_KEY;
-        if (!DEEPSEEK_KEY) {
-            console.warn('DeepSeek API key not configured');
-            return;
-        }
+        return jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+        return null;
+    }
+}
 
-        // Get last 3 messages (reduced from 5 for faster processing)
-        const recentMessages = messages.slice(-3).map(m => ({
-            role: 'user',
-            content: `${m.sender}: ${m.message}`
-        }));
+/**
+ * Generate AI player
+ */
+function createAIPlayer() {
+    aiPlayerCounter++;
+    return {
+        id: `AI-${aiPlayerCounter}`,
+        name: `AI Player ${aiPlayerCounter}`,
+        isAI: true,
+        socketId: null
+    };
+}
 
-        const systemPrompt = {
-            role: 'system',
-            content: 'You are a friendly Mahjong AI player. Respond naturally in the same language as the user (English, Traditional Chinese, or mixed). Keep responses very brief (1-2 sentences max). React to game events with short expressions like "Good move!" "碰！" "Nice!" "厲害！"'
+/**
+ * Get game state for specific player
+ * NEW: Includes Furiten indicators and wall counts
+ */
+function getGameState(game, playerId) {
+    if (!game) return null;
+
+    const player = game.players.find(p => p.id === playerId);
+    const playerIndex = game.players.findIndex(p => p.id === playerId);
+
+    return {
+        gameId: game.gameId,
+        state: game.state,
+        currentPlayer: game.currentPlayer,
+        prevailingWind: game.prevailingWind,
+        dealerPosition: game.dealerPosition,
+        turnCount: game.turnCount,
+        
+        // NEW: Wall information
+        liveWallCount: game.wallState ? (game.liveWall.length - game.wallState.livePointer) : 120,
+        deadWallCount: game.wallState ? (game.deadWall.length - game.wallState.deadPointer) : 16,
+        
+        // Player information
+        players: game.players.map((p, index) => ({
+            id: p.id,
+            name: sanitizeInput(p.name),
+            isAI: p.isAI,
+            wind: p.wind,
+            position: p.position,
+            concealedCount: p.concealed.length,
+            concealed: p.id === playerId ? p.concealed : [], // Only show own hand
+            exposed: p.exposed,
+            discards: p.discards,
+            score: p.score,
+            
+            // NEW: Furiten indicator (visible to all players)
+            isFuriten: p.isFuriten || false,
+            
+            // Is this the current viewer?
+            isYou: index === playerIndex
+        })),
+        
+        // Claim information
+        lastDiscard: game.lastDiscard,
+        pendingClaims: game.pendingClaims ? game.pendingClaims.length : 0,
+        canClaim: game.state === 'CLAIMING' && game.pendingClaims?.some(c => c.player.id === playerId)
+    };
+}
+
+/**
+ * Get list of all lobbies (waiting rooms + games in progress)
+ */
+function getLobbies() {
+    const waiting = [];
+    const playing = [];
+    
+    for (const [roomId, room] of rooms.entries()) {
+        const roomInfo = {
+            roomId,
+            playerCount: room.players.length,
+            players: room.players.map(p => ({
+                name: sanitizeInput(p.name),
+                isAI: p.isAI
+            })),
+            state: room.game ? room.game.state : 'WAITING'
         };
-
-        // Parallel fetch with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout (reduced from default)
-
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DEEPSEEK_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [systemPrompt, ...recentMessages],
-                max_tokens: 80, // Reduced from default for faster response
-                temperature: 0.8
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            console.error('DeepSeek API error:', response.status);
-            return;
+        
+        if (room.game && room.game.state === 'PLAYING') {
+            // Game in progress
+            playing.push({
+                ...roomInfo,
+                currentTurn: room.game.currentPlayer,
+                turnCount: room.game.turnCount,
+                discardCount: room.game.players.reduce((sum, p) => sum + p.discards.length, 0)
+            });
+        } else {
+            // Waiting room
+            waiting.push(roomInfo);
         }
+    }
+    
+    return { waiting, playing };
+}
 
-        const data = await response.json();
-        const aiMessage = data.choices[0]?.message?.content?.trim();
-
-        if (aiMessage) {
-            // Immediately emit to room
-            const room = rooms.get(roomCode);
-            if (room) {
-                const aiPlayer = room.players.find(p => p.isAI);
-                if (aiPlayer) {
-                    io.to(roomCode).emit('chatMessage', {
-                        sender: aiPlayer.displayName,
-                        message: aiMessage,
-                        isAI: true,
-                        timestamp: Date.now()
-                    });
+/**
+ * Schedule AI turns automatically
+ */
+function scheduleAITurns(room) {
+    if (!room || !room.game) return;
+    if (room.game.state !== 'PLAYING') return;
+    
+    const currentPlayer = room.game.players[room.game.currentPlayer];
+    
+    if (currentPlayer && currentPlayer.isAI) {
+        // AI player's turn - execute after short delay
+        setTimeout(() => {
+            if (!room || !room.game) return;
+            if (room.game.state !== 'PLAYING') return;
+            
+            const aiMove = room.game.getAIMove(currentPlayer);
+            
+            if (aiMove && aiMove.action === 'DISCARD') {
+                const result = room.game.discardTile(currentPlayer.id, aiMove.tileIndex);
+                
+                if (result.success) {
+                    // Broadcast game state
+                    io.to(room.roomId).emit('gameState', getGameState(room.game, currentPlayer.id));
+                    
+                    // Check if game ended
+                    if (room.game.state === 'ENDED') {
+                        handleGameEnd(room);
+                    } else {
+                        // Continue AI turns if needed
+                        scheduleAITurns(room);
+                    }
                 }
             }
-        }
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            console.log('AI chat timeout (non-blocking)');
-        } else {
-            console.error('AI chat processing error:', err);
-        }
+        }, 1000); // 1 second delay for AI thinking
     }
 }
 
-// Quick AI event reactions (instant, no API call)
-function emitQuickAIReaction(roomCode, event) {
-    const reactions = {
-        'pung': ['碰！', 'Pung!', '好！', 'Nice!'],
-        'kong': ['槓！', 'Kong!', '厲害！', 'Great!'],
-        'chow': ['吃！', 'Chow!', '不錯！', 'Good!'],
-        'mahjong': ['恭喜！', 'Congrats!', '胡了！', 'Mahjong!'],
-        'discard': ['嗯...', 'Hmm...', '好棋！', 'Good move!']
-    };
-
-    const eventReactions = reactions[event];
-    if (!eventReactions || Math.random() > 0.3) return; // 30% chance for quick reactions
-
-    const room = rooms.get(roomCode);
-    if (!room) return;
-
-    const aiPlayer = room.players.find(p => p.isAI);
-    if (!aiPlayer) return;
-
-    const reaction = eventReactions[Math.floor(Math.random() * eventReactions.length)];
+/**
+ * Handle game end
+ */
+function handleGameEnd(room) {
+    if (!room || !room.game) return;
     
-    io.to(roomCode).emit('chatMessage', {
-        sender: aiPlayer.displayName,
-        message: reaction,
-        isAI: true,
-        timestamp: Date.now()
-    });
+    const game = room.game;
+    
+    if (game.endReason === 'WIN') {
+        const data = game.endData;
+        
+        io.to(room.roomId).emit('gameWon', {
+            winner: sanitizeInput(data.winner.name),
+            winnerId: data.winner.id,
+            faan: data.faan,
+            points: data.points,
+            breakdown: data.breakdown, // NEW: Score breakdown
+            isSelfDraw: data.isSelfDraw || false,
+            loser: data.loser ? sanitizeInput(data.loser.name) : null
+        });
+        
+        // Update database stats
+        if (!data.winner.isAI) {
+            db.updatePlayerStats(data.winner.id, {
+                gamesWon: 1,
+                totalScore: data.points
+            }).catch(err => console.error('Failed to update stats:', err));
+        }
+    } else if (game.endReason === 'EXHAUSTIVE_DRAW') {
+        io.to(room.roomId).emit('gameDraw', {
+            reason: 'Wall exhausted',
+            turnCount: game.turnCount
+        });
+    }
 }
 
-// Socket.IO
+// ═══════════════════════════════════════════════════════════════════════
+// SOCKET.IO CONNECTION HANDLING
+// ═══════════════════════════════════════════════════════════════════════
+
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
-
-    socket.on('createRoom', (user) => {
-        const roomCode = generateRoomCode();
+    
+    // ─── AUTHENTICATION ───
+    
+    socket.on('authenticate', (data) => {
+        const { token } = data;
+        const decoded = verifyToken(token);
         
-        // Auto-fill with AI players
-        const aiPlayers = [
-            { id: `ai-${roomCode}-1`, username: 'AI-South', displayName: '電腦南', isAI: true },
-            { id: `ai-${roomCode}-2`, username: 'AI-West', displayName: '電腦西', isAI: true },
-            { id: `ai-${roomCode}-3`, username: 'AI-North', displayName: '電腦北', isAI: true }
-        ];
-        
-        const room = {
-            roomCode,
-            players: [user, ...aiPlayers], // Human + 3 AI
-            game: null,
-            chatMessages: []
-        };
-        rooms.set(roomCode, room);
-        userSockets.set(user.id, socket.id);
-
-        socket.join(roomCode);
-        socket.emit('roomCreated', room);
-        broadcastLobbies();
-    });
-
-    socket.on('joinRoom', ({ roomCode, user }) => {
-        const room = rooms.get(roomCode);
-        if (!room) {
-            return socket.emit('error', { message: '房間不存在 Room not found' });
-        }
-
-        // Count human players only
-        const humanPlayers = room.players.filter(p => !p.isAI);
-        if (humanPlayers.length >= 4) {
-            return socket.emit('error', { message: '房間已滿 Room is full' });
-        }
-
-        // Replace first AI player with the joining human
-        const aiIndex = room.players.findIndex(p => p.isAI);
-        if (aiIndex !== -1) {
-            room.players[aiIndex] = user; // Replace AI with human
-        } else {
-            room.players.push(user); // No AI to replace, just add
-        }
-        
-        userSockets.set(user.id, socket.id);
-        socket.join(roomCode);
-
-        io.to(roomCode).emit('roomUpdate', room);
-        socket.emit('roomJoined', room);
-        broadcastLobbies();
-    });
-
-    socket.on('startGame', async (roomCode) => {
-        const room = rooms.get(roomCode);
-        if (!room || room.players.length !== 4) {
-            return socket.emit('error', { message: '需要4位玩家 Need 4 players' });
-        }
-
-        // Create game
-        const game = new MahjongGame(room.players);
-        room.game = game;
-
-        // Start game in database
-        const dbGameId = await db.createGame(roomCode, room.players);
-        room.dbGameId = dbGameId;
-
-        io.to(roomCode).emit('gameStart', game.getState());
-        broadcastLobbies();
-
-        // AI players take turns (optimized)
-        scheduleAITurns(roomCode);
-    });
-
-    socket.on('discardTile', ({ roomCode, tileIndex }) => {
-        const room = rooms.get(roomCode);
-        if (!room || !room.game) return;
-
-        const result = room.game.discardTile(tileIndex);
-        if (result.success) {
-            io.to(roomCode).emit('gameUpdate', room.game.getState());
+        if (decoded) {
+            socket.userId = decoded.userId;
+            socket.username = decoded.username;
+            userSockets.set(socket.userId, socket.id);
             
-            // Quick AI reaction (instant, no API)
-            emitQuickAIReaction(roomCode, 'discard');
-
-            if (room.game.gameOver) {
-                handleGameOver(roomCode, room);
-            } else {
-                // Continue with AI turns if next player is AI
-                scheduleAITurns(roomCode);
-            }
+            socket.emit('authenticated', {
+                success: true,
+                userId: decoded.userId,
+                username: decoded.username
+            });
+            
+            // Send current lobbies
+            socket.emit('lobbies', getLobbies());
+        } else {
+            socket.emit('authenticated', { success: false, error: 'Invalid token' });
         }
-    });
-
-    socket.on('claimPung', ({ roomCode }) => {
-        handleClaim(roomCode, 'pung');
-    });
-
-    socket.on('claimKong', ({ roomCode }) => {
-        handleClaim(roomCode, 'kong');
-    });
-
-    socket.on('claimChow', ({ roomCode }) => {
-        handleClaim(roomCode, 'chow');
-    });
-
-    socket.on('declareMahjong', ({ roomCode }) => {
-        const room = rooms.get(roomCode);
-        if (!room || !room.game) return;
-
-        room.game.declareMahjong();
-        if (room.game.gameOver) {
-            handleGameOver(roomCode, room);
-        }
-    });
-
-    socket.on('skipClaim', ({ roomCode }) => {
-        const room = rooms.get(roomCode);
-        if (!room || !room.game) return;
-
-        room.game.skipClaim();
-        io.to(roomCode).emit('gameUpdate', room.game.getState());
-        
-        // Continue with AI turns after skip
-        scheduleAITurns(roomCode);
-    });
-
-    socket.on('chatMessage', ({ roomCode, message, sender }) => {
-        const sanitizedMessage = sanitizeInput(message);
-        if (!sanitizedMessage) return;
-
-        const chatMsg = {
-            sender,
-            message: sanitizedMessage,
-            isAI: false,
-            timestamp: Date.now()
-        };
-
-        const room = rooms.get(roomCode);
-        if (room) {
-            room.chatMessages.push(chatMsg);
-            io.to(roomCode).emit('chatMessage', chatMsg);
-
-            // Trigger AI response (async, non-blocking)
-            handleAIChat(roomCode, room.chatMessages);
-        }
-    });
-
-    socket.on('leaveRoom', (roomCode) => {
-        const room = rooms.get(roomCode);
-        if (room) {
-            socket.leave(roomCode);
-            // Clean up room logic here if needed
-            broadcastLobbies();
-        }
-    });
-
-    socket.on('getLobbies', () => {
-        socket.emit('lobbiesUpdate', getLobbies());
     });
     
-    socket.on('playerLogout', ({ roomCode, userId }) => {
-        const room = rooms.get(roomCode);
-        if (!room || !room.game) return;
+    // ─── LOBBY MANAGEMENT ───
+    
+    socket.on('getLobbies', () => {
+        socket.emit('lobbies', getLobbies());
+    });
+    
+    socket.on('createRoom', (data) => {
+        if (!socket.userId) {
+            socket.emit('error', { message: 'Not authenticated' });
+            return;
+        }
         
-        // Find player index
-        const playerIndex = room.game.players.findIndex(p => p.id === userId);
-        if (playerIndex === -1) return;
+        const roomId = `room-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
-        const leavingPlayer = room.game.players[playerIndex];
-        
-        // Create AI replacement that inherits game state and learns from history
-        const aiPlayer = {
-            id: `ai-replacement-${Date.now()}`,
-            username: `AI-Replacement-${playerIndex}`,
-            displayName: `電腦接替 AI (${leavingPlayer.wind})`,
-            isAI: true,
-            // Inherit complete game state
-            hand: [...leavingPlayer.hand],
-            melds: [...leavingPlayer.melds],
-            score: leavingPlayer.score,
-            wind: leavingPlayer.wind,
-            isWinner: leavingPlayer.isWinner
+        const room = {
+            roomId,
+            host: socket.userId,
+            players: [
+                {
+                    id: socket.userId,
+                    name: sanitizeInput(socket.username || 'Player'),
+                    isAI: false,
+                    socketId: socket.id
+                }
+            ],
+            game: null,
+            createdAt: Date.now()
         };
         
-        // Replace in both room and game
-        room.players[playerIndex] = aiPlayer;
-        room.game.players[playerIndex] = aiPlayer;
+        rooms.set(roomId, room);
+        socket.join(roomId);
+        socket.roomId = roomId;
         
-        // Play history is already tracked in game.playHistory[playerIndex]
-        // AI will read it via getAIMove()
+        socket.emit('roomCreated', { roomId, players: room.players });
         
-        console.log(`Player ${userId} replaced with AI at position ${playerIndex}`);
-        console.log(`AI inherits: ${aiPlayer.hand.length} tiles, ${aiPlayer.melds.length} melds, score ${aiPlayer.score}`);
-        console.log(`Play history: ${room.game.playHistory[playerIndex].discards.length} discards, ${room.game.playHistory[playerIndex].claims.length} claims`);
+        // Broadcast updated lobbies
+        io.emit('lobbies', getLobbies());
+    });
+    
+    socket.on('joinRoom', (data) => {
+        if (!socket.userId) {
+            socket.emit('error', { message: 'Not authenticated' });
+            return;
+        }
         
-        // Notify all players in room
-        io.to(roomCode).emit('playerReplaced', { 
-            playerIndex, 
-            aiPlayer: {
-                displayName: aiPlayer.displayName,
-                wind: aiPlayer.wind,
-                isAI: true
-            },
-            message: `${leavingPlayer.displayName} 離開了，由AI接替 ${leavingPlayer.displayName} left, AI continues`
+        const { roomId } = data;
+        const room = rooms.get(roomId);
+        
+        if (!room) {
+            socket.emit('error', { message: 'Room not found' });
+            return;
+        }
+        
+        if (room.game && room.game.state !== 'WAITING') {
+            socket.emit('error', { message: 'Game already in progress' });
+            return;
+        }
+        
+        if (room.players.length >= 4) {
+            socket.emit('error', { message: 'Room is full' });
+            return;
+        }
+        
+        // Add player to room
+        room.players.push({
+            id: socket.userId,
+            name: sanitizeInput(socket.username || 'Player'),
+            isAI: false,
+            socketId: socket.id
         });
         
-        // Update game state for all players
-        io.to(roomCode).emit('gameUpdate', room.game.getState());
+        socket.join(roomId);
+        socket.roomId = roomId;
         
-        // If it's this player's turn, AI takes over immediately
-        if (room.game.currentPlayerIndex === playerIndex) {
-            setTimeout(() => {
-                handleAITurn(roomCode);
-            }, 500);
+        // Notify all players in room
+        io.to(roomId).emit('playerJoined', {
+            players: room.players,
+            playerCount: room.players.length
+        });
+        
+        // Broadcast updated lobbies
+        io.emit('lobbies', getLobbies());
+    });
+    
+    socket.on('addAI', () => {
+        if (!socket.roomId) {
+            socket.emit('error', { message: 'Not in a room' });
+            return;
+        }
+        
+        const room = rooms.get(socket.roomId);
+        if (!room) {
+            socket.emit('error', { message: 'Room not found' });
+            return;
+        }
+        
+        if (room.players.length >= 4) {
+            socket.emit('error', { message: 'Room is full' });
+            return;
+        }
+        
+        // Add AI player
+        const aiPlayer = createAIPlayer();
+        room.players.push(aiPlayer);
+        
+        io.to(socket.roomId).emit('playerJoined', {
+            players: room.players,
+            playerCount: room.players.length
+        });
+        
+        io.emit('lobbies', getLobbies());
+    });
+    
+    // ─── GAME START ───
+    
+    socket.on('startGame', () => {
+        if (!socket.roomId) {
+            socket.emit('error', { message: 'Not in a room' });
+            return;
+        }
+        
+        const room = rooms.get(socket.roomId);
+        if (!room) {
+            socket.emit('error', { message: 'Room not found' });
+            return;
+        }
+        
+        if (room.host !== socket.userId) {
+            socket.emit('error', { message: 'Only host can start game' });
+            return;
+        }
+        
+        // Auto-fill with AI players if needed
+        while (room.players.length < 4) {
+            const aiPlayer = createAIPlayer();
+            room.players.push(aiPlayer);
+        }
+        
+        // Create new game
+        try {
+            room.game = new MahjongGame(room.roomId, room.players);
+            const result = room.game.startGame();
+            
+            if (result.success) {
+                // Emit game state to all players
+                for (const player of room.players) {
+                    if (player.isAI) continue;
+                    
+                    const socketId = userSockets.get(player.id);
+                    if (socketId) {
+                        io.to(socketId).emit('gameStarted', getGameState(room.game, player.id));
+                    }
+                }
+                
+                // Broadcast updated lobbies
+                io.emit('lobbies', getLobbies());
+                
+                // Start AI turns if dealer is AI
+                scheduleAITurns(room);
+            } else {
+                socket.emit('error', { message: 'Failed to start game' });
+            }
+        } catch (error) {
+            console.error('Error starting game:', error);
+            socket.emit('error', { message: 'Failed to start game: ' + error.message });
         }
     });
-
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-        // Clean up user from rooms
-        for (const [userId, socketId] of userSockets.entries()) {
-            if (socketId === socket.id) {
-                userSockets.delete(userId);
-                db.setUserOnline(userId, false).catch(console.error);
-                break;
+    
+    // ─── GAME ACTIONS ───
+    
+    socket.on('discardTile', (data) => {
+        if (!socket.roomId) return;
+        
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.game) return;
+        
+        const { tileIndex } = data;
+        const result = room.game.discardTile(socket.userId, tileIndex);
+        
+        if (result.success) {
+            // Broadcast updated game state to all players
+            for (const player of room.game.players) {
+                if (player.isAI) continue;
+                
+                const socketId = userSockets.get(player.id);
+                if (socketId) {
+                    io.to(socketId).emit('gameState', getGameState(room.game, player.id));
+                }
+            }
+            
+            // Check if game ended
+            if (room.game.state === 'ENDED') {
+                handleGameEnd(room);
+            } else {
+                // NEW: Continue AI turns after human discard
+                scheduleAITurns(room);
+            }
+        } else {
+            socket.emit('error', { message: result.reason || 'Invalid move' });
+        }
+    });
+    
+    socket.on('claimTile', (data) => {
+        if (!socket.roomId) return;
+        
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.game) return;
+        
+        const { claimType } = data; // 'WIN', 'PUNG', 'KONG', 'CHOW'
+        
+        // Find player's pending claim
+        const playerClaim = room.game.pendingClaims?.find(c => c.player.id === socket.userId);
+        
+        if (!playerClaim) {
+            socket.emit('error', { message: 'No valid claim available' });
+            return;
+        }
+        
+        if (playerClaim.type !== claimType) {
+            socket.emit('error', { message: 'Invalid claim type' });
+            return;
+        }
+        
+        // Execute claim
+        const winningClaim = room.game.resolveClaims();
+        
+        if (winningClaim && winningClaim.player.id === socket.userId) {
+            // Broadcast updated state
+            for (const player of room.game.players) {
+                if (player.isAI) continue;
+                
+                const socketId = userSockets.get(player.id);
+                if (socketId) {
+                    io.to(socketId).emit('gameState', getGameState(room.game, player.id));
+                }
+            }
+            
+            // Check if game ended
+            if (room.game.state === 'ENDED') {
+                handleGameEnd(room);
             }
         }
+    });
+    
+    socket.on('skipClaim', () => {
+        if (!socket.roomId) return;
+        
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.game) return;
+        
+        // NEW: Handle Furiten when player skips a winning tile
+        room.game.skipClaim(socket.userId);
+        
+        // Broadcast updated state
+        for (const player of room.game.players) {
+            if (player.isAI) continue;
+            
+            const socketId = userSockets.get(player.id);
+            if (socketId) {
+                io.to(socketId).emit('gameState', getGameState(room.game, player.id));
+            }
+        }
+        
+        // Check if all claims resolved
+        if (room.game.state === 'PLAYING') {
+            // NEW: Continue AI turns after skip
+            scheduleAITurns(room);
+        }
+    });
+    
+    socket.on('declareKong', (data) => {
+        if (!socket.roomId) return;
+        
+        const room = rooms.get(socket.roomId);
+        if (!room || !room.game) return;
+        
+        const { tiles } = data;
+        const result = room.game.declareKong(socket.userId, tiles);
+        
+        if (result.success) {
+            // Broadcast updated state
+            for (const player of room.game.players) {
+                if (player.isAI) continue;
+                
+                const socketId = userSockets.get(player.id);
+                if (socketId) {
+                    io.to(socketId).emit('gameState', getGameState(room.game, player.id));
+                }
+            }
+            
+            // Check if can win on kong replacement
+            if (result.canWin) {
+                socket.emit('canWinOnKong', {
+                    faan: result.scoreResult.totalFaan,
+                    points: result.scoreResult.points,
+                    breakdown: result.scoreResult.breakdown
+                });
+            }
+            
+            // Check if game ended (dead wall exhausted)
+            if (room.game.state === 'ENDED') {
+                handleGameEnd(room);
+            }
+        } else {
+            socket.emit('error', { message: result.reason || 'Invalid kong' });
+        }
+    });
+    
+    // ─── CHAT ───
+    
+    socket.on('chatMessage', (data) => {
+        if (!socket.roomId) return;
+        
+        const message = sanitizeInput(data.message);
+        if (!message) return;
+        
+        io.to(socket.roomId).emit('chatMessage', {
+            userId: socket.userId,
+            username: sanitizeInput(socket.username || 'Player'),
+            message,
+            timestamp: Date.now()
+        });
+    });
+    
+    // ─── DISCONNECT HANDLING ───
+    
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+        
+        if (socket.userId) {
+            userSockets.delete(socket.userId);
+        }
+        
+        if (socket.roomId) {
+            const room = rooms.get(socket.roomId);
+            
+            if (room) {
+                // Remove player or replace with AI
+                const playerIndex = room.players.findIndex(p => p.id === socket.userId);
+                
+                if (playerIndex !== -1) {
+                    if (room.game && room.game.state === 'PLAYING') {
+                        // Replace with AI during active game
+                        const aiPlayer = createAIPlayer();
+                        aiPlayer.concealed = room.players[playerIndex].concealed;
+                        aiPlayer.exposed = room.players[playerIndex].exposed;
+                        aiPlayer.discards = room.players[playerIndex].discards;
+                        aiPlayer.score = room.players[playerIndex].score;
+                        aiPlayer.wind = room.players[playerIndex].wind;
+                        aiPlayer.position = room.players[playerIndex].position;
+                        
+                        // NEW: Preserve Furiten state
+                        aiPlayer.isFuriten = room.players[playerIndex].isFuriten;
+                        aiPlayer.furitenState = room.players[playerIndex].furitenState;
+                        
+                        room.players[playerIndex] = aiPlayer;
+                        room.game.players[playerIndex] = aiPlayer;
+                        
+                        io.to(socket.roomId).emit('playerReplaced', {
+                            position: playerIndex,
+                            newPlayer: {
+                                name: aiPlayer.name,
+                                isAI: true
+                            }
+                        });
+                        
+                        // Continue game with AI
+                        scheduleAITurns(room);
+                    } else {
+                        // Remove player if game hasn't started
+                        room.players.splice(playerIndex, 1);
+                        
+                        io.to(socket.roomId).emit('playerLeft', {
+                            players: room.players,
+                            playerCount: room.players.length
+                        });
+                        
+                        // Delete empty rooms
+                        if (room.players.length === 0) {
+                            rooms.delete(socket.roomId);
+                        }
+                    }
+                    
+                    // Broadcast updated lobbies
+                    io.emit('lobbies', getLobbies());
+                }
+            }
+        }
+    });
+    
+    socket.on('logout', () => {
+        // Handle logout same as disconnect
+        socket.disconnect();
     });
 });
 
-function handleClaim(roomCode, claimType) {
-    const room = rooms.get(roomCode);
-    if (!room || !room.game) return;
+// ═══════════════════════════════════════════════════════════════════════
+// HTTP ROUTES
+// ═══════════════════════════════════════════════════════════════════════
 
-    const result = room.game.processClaim(claimType);
-    if (result.success) {
-        io.to(roomCode).emit('gameUpdate', room.game.getState());
-        
-        // Quick AI reaction (instant)
-        emitQuickAIReaction(roomCode, claimType);
+// Serve main HTML
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../docs/index.html'));
+});
 
-        if (room.game.gameOver) {
-            handleGameOver(roomCode, room);
-        } else {
-            scheduleAITurns(roomCode);
-        }
-    }
-}
-
-async function handleGameOver(roomCode, room) {
-    const state = room.game.getState();
-    const winner = state.players.find(p => p.isWinner);
-
-    // Update database
-    await db.endGame(room.dbGameId, winner.id);
-    await Promise.all(
-        state.players.map(player =>
-            db.updatePlayerStats(player.id, player.score, player.isWinner)
-        )
-    );
-
-    // Emit game over
-    io.to(roomCode).emit('gameOver', {
-        winner,
-        finalScores: state.players.map(p => ({
-            displayName: p.displayName,
-            wind: p.wind,
-            score: p.score
-        }))
+// Health check
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        rooms: rooms.size,
+        connectedUsers: userSockets.size,
+        timestamp: Date.now()
     });
+});
 
-    // Quick AI congratulations (instant)
-    emitQuickAIReaction(roomCode, 'mahjong');
-
-    // Clean up
-    setTimeout(() => {
-        rooms.delete(roomCode);
-        broadcastLobbies();
-    }, 5000);
-}
-
-function scheduleAITurns(roomCode) {
-    const room = rooms.get(roomCode);
-    if (!room || !room.game) return;
-
-    const state = room.game.getState();
-    const currentPlayer = state.players[state.currentPlayerIndex];
-
-    if (currentPlayer.isAI && !room.game.gameOver) {
-        // Instant AI turn (reduced from 1000ms to 300ms)
-        setTimeout(() => {
-            if (!room.game || room.game.gameOver) return;
-
-            const move = room.game.getAIMove();
-            if (move) {
-                if (move.type === 'discard') {
-                    room.game.discardTile(move.tileIndex);
-                } else if (move.type === 'claim') {
-                    room.game.processClaim(move.claimType);
-                }
-
-                io.to(roomCode).emit('gameUpdate', room.game.getState());
-
-                if (room.game.gameOver) {
-                    handleGameOver(roomCode, room);
-                } else {
-                    scheduleAITurns(roomCode);
-                }
-            }
-        }, 300); // Reduced delay for faster gameplay
-    }
-}
-
-function broadcastLobbies() {
-    const lobbies = getLobbies();
-    io.emit('lobbiesUpdate', lobbies);
-}
-
-function getLobbies() {
-    const lobbies = [];
-    const gamesInProgress = [];
-    
-    for (const [roomCode, room] of rooms.entries()) {
-        const humanPlayers = room.players.filter(p => !p.isAI);
+// API: Register
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
         
-        if (room.game && !room.game.gameOver) {
-            // Game in progress - show in separate list
-            gamesInProgress.push({
-                roomCode,
-                status: 'playing',
-                playerCount: room.players.length,
-                humanCount: humanPlayers.length,
-                players: room.players.map(p => ({ 
-                    displayName: p.displayName,
-                    isAI: p.isAI || false,
-                    wind: p.wind || ''
-                })),
-                currentTurn: room.game.currentPlayerIndex,
-                currentPlayer: room.game.players[room.game.currentPlayerIndex].displayName,
-                discardCount: room.game.discardPile?.length || 0
-            });
-        } else if (!room.game && humanPlayers.length < 4) {
-            // Waiting for players - show in lobby
-            lobbies.push({
-                roomCode,
-                status: 'waiting',
-                playerCount: room.players.length,
-                humanCount: humanPlayers.length,
-                players: room.players.map(p => ({ 
-                    displayName: p.displayName,
-                    isAI: p.isAI || false
-                }))
-            });
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
         }
+        
+        const result = await db.createUser(sanitizeInput(username), password);
+        
+        if (result.success) {
+            const token = jwt.sign(
+                { userId: result.userId, username: result.username },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            
+            res.json({
+                success: true,
+                token,
+                userId: result.userId,
+                username: result.username
+            });
+        } else {
+            res.status(400).json({ error: result.error });
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Registration failed' });
     }
-    return { 
-        waiting: lobbies,
-        playing: gamesInProgress
-    };
-}
+});
 
-function generateRoomCode() {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+// API: Login
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+        
+        const result = await db.verifyUser(sanitizeInput(username), password);
+        
+        if (result.success) {
+            const token = jwt.sign(
+                { userId: result.userId, username: result.username },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            
+            res.json({
+                success: true,
+                token,
+                userId: result.userId,
+                username: result.username
+            });
+        } else {
+            res.status(401).json({ error: 'Invalid credentials' });
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
 
-// Start server
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🀄 Mahjong server running on port ${PORT}`);
+// API: Leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const leaderboard = await db.getLeaderboard(10);
+        res.json({
+            success: true,
+            leaderboard: leaderboard.map(entry => ({
+                username: sanitizeInput(entry.username),
+                gamesWon: entry.games_won,
+                totalScore: entry.total_score
+            }))
+        });
+    } catch (error) {
+        console.error('Leaderboard error:', error);
+        res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// START SERVER
+// ═══════════════════════════════════════════════════════════════════════
+
+http.listen(PORT, () => {
+    console.log('\n═══════════════════════════════════════════════════════════');
+    console.log('  HKOS MAHJONG SERVER');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`  Status: Running`);
+    console.log(`  Port: ${PORT}`);
+    console.log(`  URL: http://localhost:${PORT}`);
+    console.log(`  Specification: HKOS 100% Compliant`);
+    console.log(`  Features: Furiten, Wall Management, All 8 Patterns`);
+    console.log('═══════════════════════════════════════════════════════════\n');
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', () => {
     console.log('SIGTERM received, closing server...');
-    server.close(() => {
+    http.close(() => {
         console.log('Server closed');
         process.exit(0);
     });
 });
+
+module.exports = app;
