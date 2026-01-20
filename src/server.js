@@ -384,6 +384,9 @@ io.on('connection', (socket) => {
 
             if (room.game.gameOver) {
                 handleGameOver(roomCode, room);
+            } else {
+                // Continue with AI turns if next player is AI
+                scheduleAITurns(roomCode);
             }
         }
     });
@@ -416,6 +419,9 @@ io.on('connection', (socket) => {
 
         room.game.skipClaim();
         io.to(roomCode).emit('gameUpdate', room.game.getState());
+        
+        // Continue with AI turns after skip
+        scheduleAITurns(roomCode);
     });
 
     socket.on('chatMessage', ({ roomCode, message, sender }) => {
