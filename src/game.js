@@ -313,6 +313,11 @@ class MahjongGame {
         if (this.claimWindow) {
             const claims = this.claimWindow.validClaims[this.currentPlayerIndex];
             
+            // If this AI has no valid claims, skip
+            if (!claims) {
+                return { type: 'skip' };
+            }
+            
             // If learned from human, adjust probabilities based on their claim pattern
             let kongProb = 0.2, pungProb = 0.3, chowProb = 0.6;
             if (hasHistory && history.claimPattern) {
