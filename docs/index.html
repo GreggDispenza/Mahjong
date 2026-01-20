@@ -1,44 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>麻將 Mahjong Online</title>
-    <!-- System fonts only - no external font loading -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HKOS Mahjong - Hong Kong Old Style</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root {
-            --bg-cream: #faf8f3;
-            --felt-green: #2d5016;
-            --tile-face: #f5f1e8;
-            --tile-shadow: rgba(0, 0, 0, 0.3);
-            --gold: #d4af37;
-            --red: #d32f2f;
-            --text-dark: #2c2416;
-            
-            /* Mobile-optimized sizes */
-            --tile-hand-w: 32px;
-            --tile-hand-h: 44px;
-            --tile-meld-w: 24px;
-            --tile-meld-h: 32px;
-            --tile-discard-w: 20px;
-            --tile-discard-h: 28px;
-            --tile-last-w: 34px;
-            --tile-last-h: 46px;
-        }
-
-        @media (min-width: 768px) {
-            :root {
-                --tile-hand-w: 40px;
-                --tile-hand-h: 56px;
-                --tile-meld-w: 30px;
-                --tile-meld-h: 42px;
-                --tile-discard-w: 26px;
-                --tile-discard-h: 36px;
-                --tile-last-w: 44px;
-                --tile-last-h: 60px;
-            }
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -46,1723 +13,1503 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
-            background: var(--bg-cream);
-            color: var(--text-dark);
-            overflow-x: hidden;
-        }
-        
-        /* Make English text larger in UI elements */
-        button, .btn, input, select, textarea {
-            font-size: 1.15em;
-            letter-spacing: 0.3px;
-        }
-
-        /* Loading Screen */
-        #loadingScreen {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(135deg, var(--felt-green) 0%, #1a3010 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .loading-title {
-            font-size: clamp(2rem, 8vw, 4rem);
-            color: var(--gold);
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            margin-bottom: 1rem;
-        }
-
-        .loading-subtitle {
-            font-size: clamp(1rem, 4vw, 1.5rem);
-            color: white;
-            margin-bottom: 2rem;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top-color: var(--gold);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Auth Screen */
-        #authScreen {
-            display: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
             min-height: 100vh;
-            padding: 1rem;
-            background: linear-gradient(135deg, var(--felt-green) 0%, #1a3010 100%);
         }
 
-        .auth-container {
-            max-width: 400px;
-            margin: 2rem auto;
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .auth-title {
-            font-size: 2rem;
-            text-align: center;
-            color: var(--felt-green);
-            margin-bottom: 1.5rem;
-        }
-
-        .input-group {
-            margin-bottom: 1rem;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--text-dark);
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-family: inherit;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: var(--felt-green);
-        }
-
-        .btn {
-            width: 100%;
-            padding: 0.75rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 1.2rem; /* Increased from 1.1rem */
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.3s;
-            word-spacing: 3px; /* Add space between Chinese and English */
-        }
-
-        .btn-primary {
-            background: var(--felt-green);
-            color: white;
-            margin-bottom: 0.5rem;
-        }
-
-        .btn-primary:hover {
-            background: #1a3010;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--felt-green);
-            border: 2px solid var(--felt-green);
-        }
-
-        .btn-secondary:hover {
-            background: var(--felt-green);
-            color: white;
-        }
-
-        .error-msg {
-            background: #ffebee;
-            color: var(--red);
-            padding: 0.75rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            display: none;
-        }
-
-        /* Lobby Screen */
-        #lobbyScreen {
-            display: none;
-            min-height: 100vh;
-            padding: 1rem;
-            background: var(--bg-cream);
-        }
-
-        .lobby-header {
-            background: var(--felt-green);
-            color: white;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
         }
 
-        .lobby-title {
-            font-size: clamp(1.2rem, 5vw, 1.8rem);
-        }
-
-        .lobby-actions {
+        .header h1 {
+            font-size: 28px;
+            color: #1e3c72;
             display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
         }
 
-        .btn-small {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 6px;
-            font-family: inherit;
-            cursor: pointer;
-            font-size: 0.9rem;
-            white-space: nowrap;
+        .compliance-badge {
+            background: #22c55e;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
         }
 
-        .btn-create {
-            background: var(--gold);
-            color: var(--text-dark);
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .username {
+            font-weight: 600;
+            color: #1e3c72;
         }
 
         .btn-logout {
-            background: var(--red);
+            background: #ef4444;
             color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
         }
 
-        .lobby-content {
-            display: grid;
-            gap: 1rem;
-            grid-template-columns: 1fr;
+        .btn-logout:hover {
+            background: #dc2626;
         }
 
-        @media (min-width: 768px) {
-            .lobby-content {
-                grid-template-columns: 2fr 1fr;
-            }
-        }
-
-        .rooms-panel, .leaderboard-panel {
+        /* Auth Section */
+        #auth-section {
             background: white;
-            border-radius: 8px;
-            padding: 1rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 40px;
+            border-radius: 10px;
+            max-width: 400px;
+            margin: 100px auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .panel-title {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            color: var(--felt-green);
-            border-bottom: 2px solid var(--gold);
-            padding-bottom: 0.5rem;
+        #auth-section h2 {
+            margin-bottom: 20px;
+            color: #1e3c72;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        /* Lobby Section */
+        #lobby-section {
+            display: none;
+        }
+
+        .lobby-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .lobby-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .lobby-panel h2 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .room-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .room-item {
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            background: var(--bg-cream);
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .room-info {
-            flex: 1;
-            min-width: 150px;
-        }
-
-        .room-code {
-            font-weight: bold;
-            color: var(--felt-green);
-        }
-
-        .btn-join {
-            background: var(--felt-green);
-            color: white;
-        }
-
-        .leaderboard-list {
-            list-style: none;
-        }
-
-        .leaderboard-item {
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            background: var(--bg-cream);
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .rank {
-            font-weight: bold;
-            color: var(--gold);
-            margin-right: 0.5rem;
-        }
-
-        /* Waiting Screen */
-        #waitingScreen {
-            display: none;
-            min-height: 100vh;
-            padding: 1rem;
-            background: var(--bg-cream);
-        }
-
-        .waiting-container {
-            max-width: 600px;
-            margin: 2rem auto;
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-
-        .waiting-title {
-            font-size: 2rem;
-            color: var(--felt-green);
-            margin-bottom: 1rem;
-        }
-
-        .room-code-display {
-            font-size: 2.5rem;
-            color: var(--gold);
-            margin: 1rem 0;
-            letter-spacing: 0.2em;
-        }
-
-        .players-waiting {
-            margin: 2rem 0;
-            padding: 1rem;
-            background: var(--bg-cream);
+            background: #f9fafb;
+            padding: 15px;
             border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .player-slot {
-            padding: 0.75rem;
-            margin: 0.5rem 0;
-            background: white;
-            border-radius: 6px;
+        .room-item:hover {
+            border-color: #3b82f6;
+            transform: translateX(5px);
+        }
+
+        .room-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
+            margin-bottom: 8px;
         }
 
-        .player-slot.filled {
-            background: linear-gradient(90deg, var(--felt-green) 0%, #2d5016 100%);
+        .room-id {
+            font-weight: 600;
+            color: #1e3c72;
+            font-size: 14px;
+        }
+
+        .player-count {
+            background: #3b82f6;
             color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
         }
 
-        .wind-label {
-            font-size: 1.5rem;
-            font-weight: bold;
+        .room-players {
+            font-size: 13px;
+            color: #6b7280;
         }
 
-        .btn-leave {
-            background: var(--red);
+        .player-chip {
+            display: inline-block;
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-right: 5px;
+            font-size: 12px;
+        }
+
+        .player-chip.ai {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .btn-create-room {
+            width: 100%;
+            background: #22c55e;
             color: white;
-            margin-top: 1rem;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 15px;
         }
 
-        .btn-start {
-            background: var(--gold);
-            color: var(--text-dark);
-            margin-top: 1rem;
+        .btn-create-room:hover {
+            background: #16a34a;
         }
 
-        /* Game Screen */
-        #gameScreen {
+        /* Game Section */
+        #game-section {
             display: none;
-            min-height: 100vh;
-            background: var(--felt-green);
-            padding: 0.5rem;
         }
 
-        /* Mobile: Stack vertically, Desktop: Grid layout */
-        .game-layout {
+        .game-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Game Info Bar */
+        .game-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e3c72;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .game-status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-item {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
-            max-width: 1400px;
-            margin: 0 auto;
+            gap: 3px;
         }
 
-        @media (min-width: 768px) {
-            .game-layout {
-                display: grid;
-                grid-template-areas:
-                    "north north north"
-                    "west center east"
-                    "south south south";
-                grid-template-columns: 1fr 2fr 1fr;
-                grid-template-rows: auto 1fr auto;
-                gap: 0.5rem;
-                height: calc(100vh - 1rem);
-            }
-
-            .player-area-north { grid-area: north; }
-            .player-area-west { grid-area: west; }
-            .player-area-east { grid-area: east; }
-            .player-area-south { grid-area: south; }
-            .center-area { grid-area: center; }
+        .status-label {
+            font-size: 11px;
+            opacity: 0.8;
+            text-transform: uppercase;
         }
 
-        .player-area {
-            background: rgba(0, 0, 0, 0.2);
+        .status-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .wall-counter {
+            display: flex;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 6px;
+        }
+
+        .wall-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .wall-label {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .wall-count {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Players Grid */
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .player-box {
+            background: #f9fafb;
+            padding: 15px;
             border-radius: 8px;
-            padding: 0.5rem;
+            border: 3px solid #e5e7eb;
+            position: relative;
         }
 
-        .player-info {
+        .player-box.active {
+            border-color: #22c55e;
+            background: #f0fdf4;
+        }
+
+        .player-box.you {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .player-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.5rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
+            margin-bottom: 10px;
         }
 
         .player-name {
-            color: white;
-            font-size: clamp(0.9rem, 3vw, 1.1rem);
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e3c72;
         }
 
-        .player-score {
-            color: var(--gold);
-            font-size: clamp(0.85rem, 2.5vw, 1rem);
+        .player-name.ai {
+            color: #6b7280;
         }
 
         .player-wind {
-            background: var(--gold);
-            color: var(--text-dark);
-            padding: 0.25rem 0.5rem;
+            background: #1e3c72;
+            color: white;
+            padding: 3px 8px;
             border-radius: 4px;
+            font-size: 12px;
             font-weight: bold;
         }
 
-        .player-area.active {
-            background: rgba(212, 175, 55, 0.2);
-            border: 2px solid var(--gold);
+        .furiten-badge {
+            display: none;
+            background: #ef4444;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 5px;
+            animation: blink 1.5s infinite;
         }
 
-        /* Simplified Mobile Tiles */
+        .furiten-badge.active {
+            display: inline-block;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.4; }
+        }
+
+        .player-stats {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        /* Tiles Display */
+        .tiles-section {
+            margin-top: 15px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
         .tiles-container {
             display: flex;
-            gap: 2px;
-            overflow-x: auto;
-            padding: 0.25rem;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* Hide scrollbar but keep functionality */
-        .tiles-container::-webkit-scrollbar {
-            height: 4px;
-        }
-
-        .tiles-container::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 2px;
+            flex-wrap: wrap;
+            gap: 5px;
+            min-height: 50px;
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
         }
 
         .tile {
-            background: var(--tile-face);
-            border: 1px solid #ccc;
+            width: 40px;
+            height: 56px;
+            background: white;
+            border: 2px solid #d1d5db;
             border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
-            font-weight: bold;
-            box-shadow: 2px 2px 4px var(--tile-shadow);
-            flex-shrink: 0;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s;
+            font-size: 20px;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .tile:hover {
-            transform: translateY(-3px);
-            box-shadow: 3px 3px 6px var(--tile-shadow);
-        }
-        
-        /* PNG Tiles - inherit dimensions, add background properties */
-        .tile.tile-png {
-            background-color: transparent;
-            image-rendering: crisp-edges;
-            font-size: 0; /* Hide any fallback text */
+            transform: translateY(-5px);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
-        .tile.hand-tile {
-            width: var(--tile-hand-w);
-            height: var(--tile-hand-h);
-            font-size: clamp(1.2rem, 4vw, 1.6rem);
+        .tile.png-tile {
+            background-size: cover;
+            background-position: center;
         }
 
-        .tile.meld-tile {
-            width: var(--tile-meld-w);
-            height: var(--tile-meld-h);
-            font-size: clamp(0.9rem, 3vw, 1.2rem);
+        .tile.discarded {
+            opacity: 0.6;
+            cursor: default;
         }
 
-        .tile.discard-tile {
-            width: var(--tile-discard-w);
-            height: var(--tile-discard-h);
-            font-size: clamp(0.8rem, 2.5vw, 1rem);
+        .tile.discarded:hover {
+            transform: none;
         }
 
-        .tile.last-discard {
-            width: var(--tile-last-w);
-            height: var(--tile-last-h);
-            font-size: clamp(1rem, 3.5vw, 1.4rem);
-            border: 2px solid var(--red);
-            box-shadow: 0 0 10px rgba(211, 47, 47, 0.5);
-        }
-
-        /* Better tile characters - Unicode improvements */
-        .tile-char { color: #1a1a1a; }
-        .tile-dot { color: #2196f3; }
-        .tile-bamboo { color: #4caf50; }
-        .tile-wind { color: #ff5722; }
-        .tile-dragon { color: #d32f2f; }
-        
-        /* Center discard area */
-        .center-area {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .discard-area {
-            background: rgba(0, 0, 0, 0.2);
+        /* Hand Section */
+        .hand-section {
+            background: white;
+            padding: 20px;
             border-radius: 8px;
-            padding: 0.5rem;
-            flex: 1;
-            min-height: 150px;
+            margin-top: 20px;
         }
 
-        .discard-title {
-            color: white;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            opacity: 0.8;
+        .hand-section h3 {
+            color: #1e3c72;
+            margin-bottom: 15px;
         }
 
-        .discards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(var(--tile-discard-w), 1fr));
-            gap: 3px;
-            justify-items: center;
+        #my-hand {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
-        .game-status {
-            background: rgba(0, 0, 0, 0.4);
-            color: white;
-            padding: 0.5rem;
-            border-radius: 6px;
-            text-align: center;
-            font-size: clamp(0.85rem, 3vw, 1rem);
-        }
-
-        /* Action buttons - Mobile optimized */
-        .action-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-            gap: 0.5rem;
-            margin-top: 0.5rem;
+        /* Actions Panel */
+        .actions-panel {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
         }
 
         .btn-action {
-            padding: 0.75rem 0.5rem;
-            border: 2px solid white;
+            flex: 1;
+            padding: 12px;
+            border: none;
             border-radius: 6px;
-            background: rgba(212, 175, 55, 0.9);
-            color: var(--text-dark);
-            font-family: inherit;
-            font-size: clamp(0.85rem, 3vw, 1rem);
-            font-weight: bold;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .btn-action.discard {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-action.discard:hover {
+            background: #2563eb;
+        }
+
+        .btn-action.claim {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-action.claim:hover {
+            background: #16a34a;
+        }
+
+        .btn-action.skip {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-action.skip:hover {
+            background: #4b5563;
         }
 
         .btn-action:disabled {
-            opacity: 0.3;
+            background: #e5e7eb;
+            color: #9ca3af;
             cursor: not-allowed;
         }
 
-        .btn-action:not(:disabled):hover {
-            background: var(--gold);
-            transform: scale(1.05);
-        }
-
-        .btn-action:not(:disabled):active {
-            transform: scale(0.95);
-        }
-
-        /* Melds area - Mobile compact */
-        .melds-area {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-top: 0.5rem;
-        }
-
-        .meld-group {
-            display: flex;
-            gap: 2px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.25rem;
-            border-radius: 4px;
-        }
-
-        /* Chat panel - Optimized for speed */
-        .chat-panel {
-            position: fixed;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: min(350px, 90vw);
+        /* Chat Section */
+        .chat-section {
             background: white;
-            box-shadow: -4px 0 12px rgba(0,0,0,0.3);
-            transform: translateX(100%);
-            transition: transform 0.3s;
-            z-index: 1000;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 300px;
             display: flex;
             flex-direction: column;
         }
 
-        .chat-panel.open {
-            transform: translateX(0);
-        }
-
-        .chat-header {
-            background: var(--felt-green);
-            color: white;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .btn-close-chat {
-            background: var(--red);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
+        .chat-section h3 {
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-size: 16px;
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem;
+            margin-bottom: 10px;
+            max-height: 200px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px;
         }
 
         .chat-message {
-            margin-bottom: 0.75rem;
-            padding: 0.5rem;
-            border-radius: 6px;
-            background: var(--bg-cream);
+            margin-bottom: 8px;
+            font-size: 13px;
         }
 
-        .chat-message.ai {
-            background: #e3f2fd;
+        .chat-username {
+            font-weight: 600;
+            color: #1e3c72;
         }
 
-        .chat-sender {
-            font-weight: bold;
-            margin-bottom: 0.25rem;
+        .chat-text {
+            color: #4b5563;
         }
 
-        .chat-input-area {
-            padding: 1rem;
-            border-top: 1px solid #ddd;
+        .chat-input-container {
             display: flex;
-            gap: 0.5rem;
+            gap: 10px;
         }
 
         .chat-input {
             flex: 1;
-            padding: 0.75rem;
-            border: 2px solid #ddd;
+            padding: 8px 12px;
+            border: 2px solid #e5e7eb;
             border-radius: 6px;
-            font-family: inherit;
+            font-size: 14px;
         }
 
-        .btn-send-chat {
-            background: var(--felt-green);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 6px;
-            cursor: pointer;
+        .chat-input:focus {
+            outline: none;
+            border-color: #3b82f6;
         }
 
-        .btn-toggle-chat {
-            position: fixed;
-            right: 1rem;
-            top: 1rem;
-            background: var(--gold);
+        .btn-send {
+            background: #3b82f6;
             color: white;
             border: none;
-            padding: 0.75rem 1rem;
+            padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
-            z-index: 999;
-            font-family: inherit;
-            font-size: 1rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transition: all 0.3s;
-        }
-        
-        .btn-toggle-chat.has-unread {
-            animation: blink-red 1s infinite;
-        }
-        
-        @keyframes blink-red {
-            0%, 100% { 
-                background: var(--gold);
-                color: white;
-            }
-            50% { 
-                background: #ff0000;
-                color: white;
-                box-shadow: 0 4px 16px rgba(255, 0, 0, 0.6);
-            }
-        }
-        
-        .btn-logout-game {
-            position: fixed;
-            right: 1rem;
-            top: 4rem;
-            background: #d32f2f;
-            color: white;
-            border: none;
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            z-index: 999;
-            font-family: inherit;
-            font-size: 1rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transition: all 0.3s;
-        }
-        
-        .btn-logout-game:hover {
-            background: #b71c1c;
-            transform: translateY(-2px);
+            font-weight: 600;
         }
 
-        /* Win Modal */
+        .btn-send:hover {
+            background: #2563eb;
+        }
+
+        .chat-blink {
+            animation: blink 1s 3;
+        }
+
+        /* Modals */
         .modal {
             display: none;
             position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            z-index: 2000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
             align-items: center;
             justify-content: center;
-            padding: 1rem;
         }
 
-        .modal.show {
+        .modal.active {
             display: flex;
         }
 
         .modal-content {
             background: white;
-            border-radius: 12px;
-            padding: 2rem;
+            padding: 30px;
+            border-radius: 10px;
             max-width: 500px;
-            width: 100%;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content h2 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+        }
+
+        .score-breakdown {
+            margin: 20px 0;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .breakdown-pattern {
+            font-weight: 500;
+        }
+
+        .breakdown-faan {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .score-total {
+            background: #1e3c72;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
             text-align: center;
         }
 
-        .modal-title {
-            font-size: 2rem;
-            color: var(--gold);
-            margin-bottom: 1rem;
+        .total-faan {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
         }
 
-        .modal-winner {
-            font-size: 1.5rem;
-            color: var(--felt-green);
-            margin-bottom: 1.5rem;
+        .total-points {
+            font-size: 18px;
+            opacity: 0.9;
         }
 
-        .final-scores {
-            background: var(--bg-cream);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-
-        .score-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .score-row:last-child {
-            border-bottom: none;
-        }
-
-        .btn-close-modal {
-            background: var(--felt-green);
-            color: white;
+        .btn-close {
             width: 100%;
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
         }
 
-        /* Utility classes */
-        .hidden {
-            display: none !important;
+        .btn-close:hover {
+            background: #4b5563;
         }
 
-        @media (max-width: 380px) {
-            .tile.hand-tile {
-                font-size: 1rem;
+        /* Waiting Room */
+        .waiting-room {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .waiting-room h2 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+        }
+
+        .waiting-players {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .waiting-player {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .waiting-player.filled {
+            border-color: #22c55e;
+            background: #f0fdf4;
+        }
+
+        .waiting-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-add-ai {
+            flex: 1;
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-add-ai:hover {
+            background: #4b5563;
+        }
+
+        .btn-start {
+            flex: 2;
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .btn-start:hover {
+            background: #16a34a;
+        }
+
+        .btn-start:disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .lobby-container {
+                grid-template-columns: 1fr;
             }
-            .action-buttons {
-                grid-template-columns: repeat(2, 1fr);
+
+            .players-grid {
+                grid-template-columns: 1fr 1fr;
             }
+
+            .tile {
+                width: 32px;
+                height: 44px;
+                font-size: 16px;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
-    <div id="loadingScreen">
-        <div class="loading-title">🀄 麻將</div>
-        <div class="loading-subtitle">Mahjong Online</div>
-        <div class="spinner"></div>
-    </div>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                🀄 HKOS Mahjong
+                <span class="compliance-badge">100% HKOS</span>
+            </h1>
+            <div class="user-info" id="user-info" style="display: none;">
+                <span class="username" id="display-username"></span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
 
-    <!-- Auth Screen -->
-    <div id="authScreen">
-        <div class="auth-container">
-            <h1 class="auth-title">🀄 麻將 Mahjong</h1>
-            <div id="errorMsg" class="error-msg"></div>
+        <!-- Authentication Section -->
+        <div id="auth-section">
+            <h2>Login / Register</h2>
+            <div id="auth-error" class="error-message" style="display: none;"></div>
             
-            <div id="loginForm">
-                <div class="input-group">
-                    <label>用戶名 Username:</label>
-                    <input type="text" id="loginUsername" autocomplete="username">
-                </div>
-                <div class="input-group">
-                    <label>密碼 Password:</label>
-                    <input type="password" id="loginPassword" autocomplete="current-password">
-                </div>
-                <button class="btn btn-primary" onclick="login()">登入 Login</button>
-                <button class="btn btn-secondary" onclick="showRegister()">註冊 Register</button>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="Enter username" />
             </div>
-
-            <div id="registerForm" style="display:none;">
-                <div class="input-group">
-                    <label>用戶名 Username:</label>
-                    <input type="text" id="regUsername" autocomplete="username">
-                </div>
-                <div class="input-group">
-                    <label>顯示名稱 Display Name:</label>
-                    <input type="text" id="regDisplayName" autocomplete="name">
-                </div>
-                <div class="input-group">
-                    <label>密碼 Password:</label>
-                    <input type="password" id="regPassword" autocomplete="new-password">
-                </div>
-                <button class="btn btn-primary" onclick="register()">註冊 Register</button>
-                <button class="btn btn-secondary" onclick="showLogin()">返回登入 Back to Login</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lobby Screen -->
-    <div id="lobbyScreen">
-        <div class="lobby-header">
-            <div class="lobby-title">🀄 麻將大廳 Mahjong Lobby</div>
-            <div class="lobby-actions">
-                <span id="welcomeUser" style="color: white;"></span>
-                <button class="btn-small btn-create" onclick="createRoom()">建立房間 Create Room</button>
-                <button class="btn-small btn-logout" onclick="logout()">登出 Logout</button>
-            </div>
-        </div>
-
-        <div class="lobby-content">
-            <div class="rooms-panel">
-                <h2 class="panel-title">可用房間 Available Rooms</h2>
-                <div id="roomsList"></div>
-            </div>
-
-            <div class="leaderboard-panel">
-                <h2 class="panel-title">排行榜 Leaderboard</h2>
-                <ul id="leaderboardList" class="leaderboard-list"></ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- Waiting Screen -->
-    <div id="waitingScreen">
-        <div class="waiting-container">
-            <h1 class="waiting-title">等待玩家 Waiting for Players</h1>
-            <div>房間代碼 Room Code:</div>
-            <div id="roomCodeDisplay" class="room-code-display"></div>
             
-            <div class="players-waiting" id="playersWaiting"></div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter password" />
+            </div>
+            
+            <button class="btn-primary" onclick="login()">Login</button>
+            <button class="btn-secondary" onclick="register()">Register</button>
+        </div>
 
-            <button id="startGameBtn" class="btn btn-start" onclick="startGame()" style="display:none;">
-                開始遊戲 Start Game
-            </button>
-            <button class="btn btn-leave" onclick="leaveRoom()">離開房間 Leave Room</button>
+        <!-- Lobby Section -->
+        <div id="lobby-section">
+            <div class="lobby-container">
+                <!-- Waiting Rooms -->
+                <div class="lobby-panel">
+                    <h2>🎮 Waiting Rooms</h2>
+                    <div class="room-list" id="waiting-rooms"></div>
+                    <button class="btn-create-room" onclick="createRoom()">
+                        ➕ Create New Room
+                    </button>
+                </div>
+
+                <!-- Games in Progress -->
+                <div class="lobby-panel">
+                    <h2>🏁 Games in Progress</h2>
+                    <div class="room-list" id="playing-games"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waiting Room Section -->
+        <div id="waiting-room-section" style="display: none;">
+            <div class="game-container">
+                <div class="waiting-room">
+                    <h2>Waiting Room</h2>
+                    <p>Room ID: <strong id="current-room-id"></strong></p>
+                    
+                    <div class="waiting-players" id="waiting-players-grid"></div>
+                    
+                    <div class="waiting-actions">
+                        <button class="btn-add-ai" onclick="addAI()">Add AI Player</button>
+                        <button class="btn-start" id="btn-start-game" onclick="startGame()" disabled>
+                            Start Game
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat in Waiting Room -->
+                <div class="chat-section">
+                    <h3>💬 Chat</h3>
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" class="chat-input" id="chat-input" 
+                               placeholder="Type a message..." 
+                               onkeypress="handleChatEnter(event)" />
+                        <button class="btn-send" onclick="sendChat()">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Section -->
+        <div id="game-section">
+            <div class="game-container">
+                <!-- Game Info Bar -->
+                <div class="game-info-bar">
+                    <div class="game-status">
+                        <div class="status-item">
+                            <span class="status-label">Turn</span>
+                            <span class="status-value" id="turn-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Wind</span>
+                            <span class="status-value" id="prevailing-wind">E</span>
+                        </div>
+                    </div>
+                    
+                    <div class="wall-counter">
+                        <div class="wall-item">
+                            <span class="wall-label">Live Wall</span>
+                            <span class="wall-count" id="live-wall-count">120</span>
+                        </div>
+                        <div class="wall-item">
+                            <span class="wall-label">Dead Wall</span>
+                            <span class="wall-count" id="dead-wall-count">16</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Players Grid -->
+                <div class="players-grid" id="players-grid"></div>
+
+                <!-- My Hand -->
+                <div class="hand-section">
+                    <h3>Your Hand</h3>
+                    <div class="tiles-container" id="my-hand"></div>
+                    
+                    <div class="actions-panel">
+                        <button class="btn-action discard" id="btn-discard" onclick="discardSelected()" disabled>
+                            Discard Selected
+                        </button>
+                        <button class="btn-action claim" id="btn-claim-win" onclick="claimWin()" style="display: none;">
+                            🎉 Win!
+                        </button>
+                        <button class="btn-action claim" id="btn-claim-pung" onclick="claimPung()" style="display: none;">
+                            Pung
+                        </button>
+                        <button class="btn-action skip" id="btn-skip" onclick="skipClaim()" style="display: none;">
+                            Skip
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="chat-section">
+                    <h3>💬 Chat</h3>
+                    <div class="chat-messages" id="game-chat-messages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" class="chat-input" id="game-chat-input" 
+                               placeholder="Type a message..." 
+                               onkeypress="handleGameChatEnter(event)" />
+                        <button class="btn-send" onclick="sendGameChat()">Send</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Game Screen -->
-    <div id="gameScreen">
-        <button class="btn-toggle-chat" id="chatToggleBtn" onclick="toggleChat()">💬 聊天 Chat</button>
-        <button class="btn-logout-game" onclick="logoutFromGame()">🚪 登出 Logout</button>
-
-        <div class="game-layout">
-            <!-- North Player (Opponent) -->
-            <div class="player-area player-area-north" id="playerNorth">
-                <div class="player-info">
-                    <span class="player-name" id="nameNorth"></span>
-                    <span class="player-wind" id="windNorth"></span>
-                    <span class="player-score" id="scoreNorth"></span>
-                </div>
-                <div class="melds-area" id="meldsNorth"></div>
-                <div class="tiles-container" id="tilesNorth"></div>
-            </div>
-
-            <!-- West Player (Opponent) -->
-            <div class="player-area player-area-west" id="playerWest">
-                <div class="player-info">
-                    <span class="player-name" id="nameWest"></span>
-                    <span class="player-wind" id="windWest"></span>
-                    <span class="player-score" id="scoreWest"></span>
-                </div>
-                <div class="melds-area" id="meldsWest"></div>
-                <div class="tiles-container" id="tilesWest"></div>
-            </div>
-
-            <!-- Center Area (Discards) -->
-            <div class="center-area">
-                <div class="discard-area">
-                    <div class="discard-title">棄牌區 Discards</div>
-                    <div class="discards-grid" id="discardsCenter"></div>
-                </div>
-                <div class="game-status" id="gameStatus">等待開始... Waiting to start...</div>
-            </div>
-
-            <!-- East Player (Opponent) -->
-            <div class="player-area player-area-east" id="playerEast">
-                <div class="player-info">
-                    <span class="player-name" id="nameEast"></span>
-                    <span class="player-wind" id="windEast"></span>
-                    <span class="player-score" id="scoreEast"></span>
-                </div>
-                <div class="melds-area" id="meldsEast"></div>
-                <div class="tiles-container" id="tilesEast"></div>
-            </div>
-
-            <!-- South Player (You) -->
-            <div class="player-area player-area-south" id="playerSouth">
-                <div class="player-info">
-                    <span class="player-name" id="nameSouth"></span>
-                    <span class="player-wind" id="windSouth"></span>
-                    <span class="player-score" id="scoreSouth"></span>
-                </div>
-                <div class="melds-area" id="meldsSouth"></div>
-                <div class="tiles-container" id="tilesSouth"></div>
-                <div class="action-buttons">
-                    <button class="btn-action" id="btnChow" onclick="claimChow()" disabled>
-                        吃<br>Chow
-                    </button>
-                    <button class="btn-action" id="btnPung" onclick="claimPung()" disabled>
-                        碰<br>Pung
-                    </button>
-                    <button class="btn-action" id="btnKong" onclick="claimKong()" disabled>
-                        槓<br>Kong
-                    </button>
-                    <button class="btn-action" id="btnMahjong" onclick="declareMahjong()" disabled>
-                        胡<br>Mahjong
-                    </button>
-                    <button class="btn-action" id="btnSkip" onclick="skipClaim()" disabled>
-                        過<br>Skip
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chat Panel -->
-        <div class="chat-panel" id="chatPanel">
-            <div class="chat-header">
-                <h3>💬 聊天 Chat</h3>
-                <button class="btn-close-chat" onclick="toggleChat()">關閉 Close</button>
-            </div>
-            <div class="chat-messages" id="chatMessages"></div>
-            <div class="chat-input-area">
-                <input type="text" class="chat-input" id="chatInput" placeholder="輸入訊息... Type message..." maxlength="200">
-                <button class="btn-send-chat" onclick="sendChat()">發送 Send</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Win Modal -->
-    <div class="modal" id="winModal">
+    <!-- Score Breakdown Modal -->
+    <div class="modal" id="score-modal">
         <div class="modal-content">
-            <h2 class="modal-title">🎉 遊戲結束 Game Over</h2>
-            <div class="modal-winner" id="winnerName"></div>
-            <div class="final-scores" id="finalScores"></div>
-            <button class="btn btn-close-modal" onclick="closeWinModal()">返回大廳 Return to Lobby</button>
+            <h2>🎉 Game Won!</h2>
+            <p><strong>Winner:</strong> <span id="winner-name"></span></p>
+            
+            <div class="score-breakdown" id="score-breakdown"></div>
+            
+            <div class="score-total">
+                <div class="total-faan" id="total-faan">0 Faan</div>
+                <div class="total-points" id="total-points">0 Points</div>
+            </div>
+            
+            <button class="btn-close" onclick="closeScoreModal()">Close</button>
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Global state
-        let socket;
-        let currentUser = null;
-        let currentRoom = null;
-        let gameState = null;
-        let selectedTile = null;
-
-        // PNG Tile Graphics
-        let atlasData = null;
-        let usePNGTiles = false;
+        // ═══════════════════════════════════════════════════════════════
+        // GLOBAL STATE
+        // ═══════════════════════════════════════════════════════════════
         
-        const TILE_PNG_MAP = {
-            '1m':'tile_000','2m':'tile_001','3m':'tile_002','4m':'tile_003','5m':'tile_004',
-            '6m':'tile_005','7m':'tile_006','8m':'tile_007','9m':'tile_008','1p':'tile_009',
-            '2p':'tile_010','3p':'tile_011','4p':'tile_012','5p':'tile_013','6p':'tile_014',
-            '7p':'tile_015','8p':'tile_016','9p':'tile_017','1s':'tile_018','2s':'tile_019',
-            '3s':'tile_020','4s':'tile_021','5s':'tile_022','6s':'tile_023','7s':'tile_024',
-            '8s':'tile_025','9s':'tile_026','1z':'tile_027','2z':'tile_028','3z':'tile_029',
-            '4z':'tile_030','5z':'tile_031','6z':'tile_032','7z':'tile_033'
-        };
+        let socket = null;
+        let userId = null;
+        let username = null;
+        let token = null;
+        let currentRoomId = null;
+        let currentGameState = null;
+        let selectedTileIndex = null;
 
-        // Improved tile display mapping (Unicode fallback)
-        const TILE_DISPLAY = {
-            // Characters (萬)
-            '1m': '一', '2m': '二', '3m': '三', '4m': '四', '5m': '五',
-            '6m': '六', '7m': '七', '8m': '八', '9m': '九',
-            // Dots (筒)
-            '1p': '🀙', '2p': '🀚', '3p': '🀛', '4p': '🀜', '5p': '🀝',
-            '6p': '🀞', '7p': '🀟', '8p': '🀠', '9p': '🀡',
-            // Bamboo (條)
-            '1s': '🀐', '2s': '🀑', '3s': '🀒', '4s': '🀓', '5s': '🀔',
-            '6s': '🀕', '7s': '🀖', '8s': '🀗', '9s': '🀘',
-            // Winds
-            '1z': '東', '2z': '南', '3z': '西', '4z': '北',
-            // Dragons
-            '5z': '中', '6z': '發', '7z': '白'
-        };
+        // ═══════════════════════════════════════════════════════════════
+        // UTILITY FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
         
-        // Load PNG atlas
-        fetch('/assets/atlas.json')
-            .then(r => r.json())
-            .then(data => {
-                atlasData = data;
-                usePNGTiles = true;
-                console.log('✓ PNG tile atlas loaded:', data.meta.image);
-            })
-            .catch(e => {
-                console.warn('PNG tiles not available, using Unicode fallback:', e);
-                usePNGTiles = false;
-            });
-
-        // Get tile CSS class for styling
-        function getTileClass(tile) {
-            if (tile.endsWith('m')) return 'tile-char';
-            if (tile.endsWith('p')) return 'tile-dot';
-            if (tile.endsWith('s')) return 'tile-bamboo';
-            if (['1z','2z','3z','4z'].includes(tile)) return 'tile-wind';
-            if (['5z','6z','7z'].includes(tile)) return 'tile-dragon';
-            return '';
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // AUTHENTICATION
+        // ═══════════════════════════════════════════════════════════════
         
-        // Render tile as PNG or Unicode fallback
-        function renderTile(tile, className = '', onClick = '') {
-            if (usePNGTiles && atlasData && TILE_PNG_MAP[tile]) {
-                const tileId = TILE_PNG_MAP[tile];
-                const frame = atlasData.frames[tileId];
-                if (frame) {
-                    // Calculate background-size to scale 1088×1128 atlas to tile dimensions
-                    const tileWidth = 40; // Will be overridden by CSS for mobile
-                    const tileHeight = 56;
-                    const atlasWidth = atlasData.meta.size.w;
-                    const atlasHeight = atlasData.meta.size.h;
-                    const originalTileWidth = atlasData.meta.tileSize.w;
-                    const originalTileHeight = atlasData.meta.tileSize.h;
-                    
-                    const bgSizeW = (atlasWidth * tileWidth / originalTileWidth);
-                    const bgSizeH = (atlasHeight * tileHeight / originalTileHeight);
-                    
-                    const style = `
-                        background-image: url('/assets/atlas.png');
-                        background-position: -${frame.frame.x * tileWidth / originalTileWidth}px -${frame.frame.y * tileHeight / originalTileHeight}px;
-                        background-size: ${bgSizeW}px ${bgSizeH}px;
-                        background-repeat: no-repeat;
-                        image-rendering: crisp-edges;
-                    `;
-                    
-                    return `<div class="tile tile-png ${className}" style="${style}" ${onClick}></div>`;
-                }
-            }
+        async function login() {
+            const usernameInput = document.getElementById('username').value.trim();
+            const passwordInput = document.getElementById('password').value;
             
-            // Fallback to Unicode
-            return `<div class="tile ${getTileClass(tile)} ${className}" ${onClick}>${TILE_DISPLAY[tile] || tile}</div>`;
-        }
-
-        // Initialize - handle both loading and already-loaded states
-        function initializeApp() {
-            console.log('Initializing app...');
+            if (!usernameInput || !passwordInput) {
+                showError('Please enter username and password');
+                return;
+            }
             
             try {
-                socket = io({
-                    transports: ['polling', 'websocket'],
-                    upgrade: true,
-                    reconnection: true,
-                    reconnectionDelay: 1000,
-                    reconnectionAttempts: 5
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: usernameInput, 
+                        password: passwordInput 
+                    })
                 });
-                console.log('Socket.IO initialized');
-                setupSocketListeners();
-                console.log('Socket listeners setup');
-            } catch (err) {
-                console.error('Socket initialization failed:', err);
-            }
-            
-            // Check if already logged in
-            const token = localStorage.getItem('token');
-            if (token) {
-                fetch('/api/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
-                .then(res => {
-                    if (res.ok) {
-                        return res.json();
-                    }
-                    throw new Error('Not authenticated');
-                })
-                .then(user => {
-                    currentUser = user;
-                    console.log('User authenticated, showing lobby');
-                    showLobby();
-                })
-                .catch(err => {
-                    console.error('Auth check failed:', err);
-                    showAuthScreen();
-                });
-            } else {
-                showAuthScreen();
-            }
-        }
-        
-        function showAuthScreen() {
-            console.log('Showing auth screen...');
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('authScreen').style.display = 'block';
-            console.log('Auth screen displayed');
-        }
-        
-        // Run immediately if already loaded, otherwise wait for DOMContentLoaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeApp);
-        } else {
-            // DOM already loaded, run immediately
-            initializeApp();
-        }
-        
-        // Absolute fallback - force show auth screen after 3 seconds no matter what
-        setTimeout(() => {
-            if (document.getElementById('loadingScreen').style.display !== 'none') {
-                console.warn('Fallback triggered - forcing auth screen');
-                showAuthScreen();
-            }
-        }, 3000);
-
-        // Socket listeners
-        function setupSocketListeners() {
-            socket.on('connect', () => {
-                console.log('Socket connected:', socket.id);
-            });
-
-            socket.on('disconnect', () => {
-                console.log('Socket disconnected');
-            });
-
-            socket.on('error', (error) => {
-                console.error('Socket error:', error);
-                showError(error.message || '連線錯誤 Connection error');
-            });
-
-            socket.on('roomUpdate', (room) => {
-                currentRoom = room;
-                if (document.getElementById('waitingScreen').style.display !== 'none') {
-                    updateWaitingRoom(room);
-                }
-            });
-
-            socket.on('gameStart', (state) => {
-                gameState = state;
-                showGame();
-                updateGameUI();
-            });
-
-            socket.on('gameUpdate', (state) => {
-                gameState = state;
-                updateGameUI();
-            });
-
-            socket.on('gameOver', (result) => {
-                showWinModal(result);
-            });
-
-            socket.on('chatMessage', (msg) => {
-                addChatMessage(msg);
                 
-                // If chat panel is closed, trigger blink notification
-                if (!chatPanelOpen) {
-                    document.getElementById('chatToggleBtn').classList.add('has-unread');
+                const data = await response.json();
+                
+                if (data.success) {
+                    token = data.token;
+                    userId = data.userId;
+                    username = data.username;
+                    localStorage.setItem('token', token);
+                    
+                    initializeApp();
+                } else {
+                    showError(data.error || 'Login failed');
                 }
-            });
-            
-            socket.on('playerReplaced', (data) => {
-                // Show notification when player is replaced by AI
-                if (data.message) {
-                    addChatMessage({
-                        sender: 'System',
-                        message: data.message,
-                        timestamp: new Date()
-                    });
-                }
-            });
-
-            socket.on('lobbiesUpdate', (lobbies) => {
-                updateRoomsList(lobbies);
-            });
-        }
-
-        // Auth functions
-        function showRegister() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('errorMsg').style.display = 'none';
-        }
-
-        function showLogin() {
-            document.getElementById('registerForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('errorMsg').style.display = 'none';
+            } catch (error) {
+                showError('Connection error');
+                console.error('Login error:', error);
+            }
         }
 
         async function register() {
-            const username = document.getElementById('regUsername').value.trim();
-            const displayName = document.getElementById('regDisplayName').value.trim();
-            const password = document.getElementById('regPassword').value;
-
-            if (!username || !displayName || !password) {
-                showError('所有欄位必填 All fields required');
+            const usernameInput = document.getElementById('username').value.trim();
+            const passwordInput = document.getElementById('password').value;
+            
+            if (!usernameInput || !passwordInput) {
+                showError('Please enter username and password');
                 return;
             }
-
+            
             try {
-                const res = await fetch('/api/register', {
+                const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, displayName, password })
+                    body: JSON.stringify({ 
+                        username: usernameInput, 
+                        password: passwordInput 
+                    })
                 });
-
-                const data = await res.json();
-                if (res.ok) {
-                    localStorage.setItem('token', data.token);
-                    currentUser = data.user;
-                    showLobby();
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    token = data.token;
+                    userId = data.userId;
+                    username = data.username;
+                    localStorage.setItem('token', token);
+                    
+                    initializeApp();
                 } else {
-                    showError(data.error);
+                    showError(data.error || 'Registration failed');
                 }
-            } catch (err) {
-                showError('註冊失敗 Registration failed');
+            } catch (error) {
+                showError('Connection error');
+                console.error('Registration error:', error);
             }
         }
 
-        async function login() {
-            const username = document.getElementById('loginUsername').value.trim();
-            const password = document.getElementById('loginPassword').value;
-
-            if (!username || !password) {
-                showError('所有欄位必填 All fields required');
-                return;
+        function logout() {
+            if (socket) {
+                socket.emit('logout');
+                socket.disconnect();
             }
-
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const data = await res.json();
-                if (res.ok) {
-                    localStorage.setItem('token', data.token);
-                    currentUser = data.user;
-                    showLobby();
-                } else {
-                    showError(data.error);
-                }
-            } catch (err) {
-                showError('登入失敗 Login failed');
-            }
-        }
-
-        async function logout() {
-            const token = localStorage.getItem('token');
-            if (token) {
-                await fetch('/api/logout', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-            }
+            
             localStorage.removeItem('token');
-            currentUser = null;
+            token = null;
+            userId = null;
+            username = null;
+            
             location.reload();
         }
 
-        // Security: Escape HTML to prevent XSS
-        function escapeHtml(unsafe) {
-            if (!unsafe) return '';
-            return unsafe
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+        // ═══════════════════════════════════════════════════════════════
+        // APP INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+        
+        function initializeApp() {
+            // Hide auth, show lobby
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('lobby-section').style.display = 'block';
+            document.getElementById('user-info').style.display = 'flex';
+            document.getElementById('display-username').textContent = username;
+            
+            // Connect to socket
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                socket.emit('authenticate', { token });
+            });
+            
+            socket.on('authenticated', (data) => {
+                if (data.success) {
+                    console.log('Authenticated');
+                    socket.emit('getLobbies');
+                }
+            });
+            
+            setupSocketListeners();
         }
 
-        function showError(msg) {
-            const errorDiv = document.getElementById('errorMsg');
-            errorDiv.textContent = msg;
-            errorDiv.style.display = 'block';
+        // ═══════════════════════════════════════════════════════════════
+        // SOCKET LISTENERS
+        // ═══════════════════════════════════════════════════════════════
+        
+        function setupSocketListeners() {
+            socket.on('lobbies', (data) => {
+                updateLobbies(data);
+            });
+            
+            socket.on('roomCreated', (data) => {
+                currentRoomId = data.roomId;
+                showWaitingRoom(data);
+            });
+            
+            socket.on('playerJoined', (data) => {
+                updateWaitingRoom(data);
+            });
+            
+            socket.on('gameStarted', (gameState) => {
+                currentGameState = gameState;
+                showGame(gameState);
+            });
+            
+            socket.on('gameState', (gameState) => {
+                currentGameState = gameState;
+                updateGameState(gameState);
+            });
+            
+            socket.on('gameWon', (data) => {
+                showWinModal(data);
+            });
+            
+            socket.on('gameDraw', (data) => {
+                alert('Game ended in draw: ' + data.reason);
+                backToLobby();
+            });
+            
+            socket.on('chatMessage', (data) => {
+                addChatMessage(data);
+            });
+            
+            socket.on('error', (data) => {
+                alert('Error: ' + data.message);
+            });
         }
 
-        // Lobby functions
-        async function showLobby() {
-            document.getElementById('authScreen').style.display = 'none';
-            document.getElementById('waitingScreen').style.display = 'none';
-            document.getElementById('gameScreen').style.display = 'none';
-            document.getElementById('lobbyScreen').style.display = 'block';
-
-            // Normalize user object
-            if (currentUser.display_name && !currentUser.displayName) {
-                currentUser.displayName = currentUser.display_name;
-            }
-
-            document.getElementById('welcomeUser').textContent = `歡迎 ${currentUser.displayName || currentUser.display_name}`;
-
-            // Load lobbies and leaderboard
-            socket.emit('getLobbies');
-            loadLeaderboard();
-        }
-
-        async function loadLeaderboard() {
-            try {
-                const res = await fetch('/api/leaderboard');
-                const data = await res.json();
-                const list = document.getElementById('leaderboardList');
-                list.innerHTML = data.map((player, i) => {
-                    const safeName = escapeHtml(player.display_name);
-                    return `
-                    <li class="leaderboard-item">
-                        <div>
-                            <span class="rank">#${i + 1}</span>
-                            ${safeName}
+        // ═══════════════════════════════════════════════════════════════
+        // LOBBY FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+        
+        function updateLobbies(data) {
+            const waitingDiv = document.getElementById('waiting-rooms');
+            const playingDiv = document.getElementById('playing-games');
+            
+            // Waiting rooms
+            if (data.waiting.length === 0) {
+                waitingDiv.innerHTML = '<p style="color: #6b7280; padding: 20px; text-align: center;">No waiting rooms. Create one!</p>';
+            } else {
+                waitingDiv.innerHTML = data.waiting.map(room => `
+                    <div class="room-item" onclick="joinRoom('${room.roomId}')">
+                        <div class="room-header">
+                            <span class="room-id">Room ${room.roomId.substring(5, 13)}</span>
+                            <span class="player-count">${room.playerCount}/4</span>
                         </div>
-                        <div>🏆 ${player.games_won}勝 ${player.total_score}分</div>
-                    </li>
-                    `;
-                }).join('');
-            } catch (err) {
-                console.error('Failed to load leaderboard:', err);
-            }
-        }
-
-        function updateRoomsList(data) {
-            const list = document.getElementById('roomsList');
-            
-            const waiting = data.waiting || [];
-            const playing = data.playing || [];
-            
-            if (waiting.length === 0 && playing.length === 0) {
-                list.innerHTML = '<p>沒有可用房間 No rooms available</p>';
-                return;
-            }
-            
-            let html = '';
-            
-            // Waiting rooms (can join)
-            if (waiting.length > 0) {
-                html += '<h3 style="color: var(--gold); margin: 1rem 0 0.5rem 0;">等待中 Waiting Rooms</h3>';
-                html += waiting.map(room => `
-                    <div class="room-item">
-                        <div class="room-info">
-                            <div class="room-code">${room.roomCode}</div>
-                            <div style="font-size: 0.9rem; color: #ccc;">
-                                ${room.humanCount} human${room.humanCount !== 1 ? 's' : ''} 
-                                + ${room.playerCount - room.humanCount} AI
-                            </div>
+                        <div class="room-players">
+                            ${room.players.map(p => 
+                                `<span class="player-chip ${p.isAI ? 'ai' : ''}">${escapeHtml(p.name)}</span>`
+                            ).join('')}
                         </div>
-                        <button class="btn-small btn-join" onclick="joinRoom('${room.roomCode}')">
-                            加入 Join
-                        </button>
                     </div>
                 `).join('');
             }
             
-            // Games in progress (view only)
-            if (playing.length > 0) {
-                html += '<h3 style="color: var(--red); margin: 1.5rem 0 0.5rem 0;">🎮 進行中 Games In Progress</h3>';
-                html += playing.map(game => `
-                    <div class="room-item" style="border-left: 3px solid var(--red); background: rgba(211, 47, 47, 0.1);">
-                        <div class="room-info">
-                            <div class="room-code">${game.roomCode}</div>
-                            <div style="font-size: 0.85rem; color: #ccc; margin-top: 0.3rem;">
-                                👤 Players: ${game.players.map(p => 
-                                    `<span style="color: ${p.isAI ? '#888' : 'var(--gold)'}">
-                                        ${escapeHtml(p.displayName)}${p.wind ? ' (' + p.wind + ')' : ''}
-                                    </span>`
-                                ).join(', ')}
-                            </div>
-                            <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.2rem;">
-                                🎲 Turn: ${escapeHtml(game.currentPlayer)} | Discards: ${game.discardCount}
-                            </div>
+            // Games in progress
+            if (data.playing.length === 0) {
+                playingDiv.innerHTML = '<p style="color: #6b7280; padding: 20px; text-align: center;">No games in progress</p>';
+            } else {
+                playingDiv.innerHTML = data.playing.map(room => `
+                    <div class="room-item" style="cursor: default;">
+                        <div class="room-header">
+                            <span class="room-id">Game ${room.roomId.substring(5, 13)}</span>
+                            <span class="player-count">Turn ${room.turnCount}</span>
                         </div>
-                        <button class="btn-small" disabled style="opacity: 0.5; cursor: not-allowed;">
-                            進行中 Playing
-                        </button>
+                        <div class="room-players">
+                            ${room.players.map(p => 
+                                `<span class="player-chip ${p.isAI ? 'ai' : ''}">${escapeHtml(p.name)}</span>`
+                            ).join('')}
+                        </div>
                     </div>
                 `).join('');
             }
-            
-            list.innerHTML = html;
         }
 
         function createRoom() {
-            if (!currentUser) {
-                showError('請先登入 Please login first');
-                return;
+            socket.emit('createRoom');
+        }
+
+        function joinRoom(roomId) {
+            socket.emit('joinRoom', { roomId });
+            currentRoomId = roomId;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WAITING ROOM
+        // ═══════════════════════════════════════════════════════════════
+        
+        function showWaitingRoom(data) {
+            document.getElementById('lobby-section').style.display = 'none';
+            document.getElementById('waiting-room-section').style.display = 'block';
+            document.getElementById('current-room-id').textContent = data.roomId.substring(5, 13);
+            updateWaitingRoom(data);
+        }
+
+        function updateWaitingRoom(data) {
+            const grid = document.getElementById('waiting-players-grid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 4; i++) {
+                const player = data.players[i];
+                const div = document.createElement('div');
+                div.className = 'waiting-player' + (player ? ' filled' : '');
+                div.innerHTML = player 
+                    ? `<strong>${escapeHtml(player.name)}</strong><br>${player.isAI ? '🤖 AI' : '👤 Human'}`
+                    : '⏳ Waiting...';
+                grid.appendChild(div);
             }
             
-            // Ensure user object has all required fields
-            const userForRoom = {
-                id: currentUser.id,
-                username: currentUser.username,
-                displayName: currentUser.display_name || currentUser.displayName,
-                isAI: false
-            };
-            
-            socket.emit('createRoom', userForRoom);
-            socket.once('roomCreated', (room) => {
-                currentRoom = room;
-                showWaitingRoom();
-            });
+            document.getElementById('btn-start-game').disabled = data.playerCount < 2;
         }
 
-        function joinRoom(roomCode) {
-            if (!currentUser) {
-                showError('請先登入 Please login first');
-                return;
-            }
-            
-            // Ensure user object has all required fields
-            const userForRoom = {
-                id: currentUser.id,
-                username: currentUser.username,
-                displayName: currentUser.display_name || currentUser.displayName,
-                isAI: false
-            };
-            
-            socket.emit('joinRoom', { roomCode, user: userForRoom });
-            socket.once('roomJoined', (room) => {
-                currentRoom = room;
-                showWaitingRoom();
-            });
-        }
-
-        // Waiting room
-        function showWaitingRoom() {
-            document.getElementById('lobbyScreen').style.display = 'none';
-            document.getElementById('waitingScreen').style.display = 'block';
-            document.getElementById('roomCodeDisplay').textContent = currentRoom.roomCode;
-            updateWaitingRoom(currentRoom);
-        }
-
-        function updateWaitingRoom(room) {
-            const container = document.getElementById('playersWaiting');
-            const winds = ['東 East', '南 South', '西 West', '北 North'];
-            
-            container.innerHTML = winds.map((wind, i) => {
-                const player = room.players[i];
-                return `
-                    <div class="player-slot ${player ? 'filled' : ''}">
-                        <span class="wind-label">${wind}</span>
-                        <span>${player ? escapeHtml(player.displayName) : '等待中... Waiting...'}</span>
-                    </div>
-                `;
-            }).join('');
-
-            // Show start button if room is full and user is host
-            const isHost = room.players[0]?.id === currentUser.id;
-            const isFull = room.players.length === 4;
-            document.getElementById('startGameBtn').style.display = (isHost && isFull) ? 'block' : 'none';
+        function addAI() {
+            socket.emit('addAI');
         }
 
         function startGame() {
-            socket.emit('startGame', currentRoom.roomCode);
+            socket.emit('startGame');
         }
 
-        function leaveRoom() {
-            socket.emit('leaveRoom', currentRoom.roomCode);
-            currentRoom = null;
-            showLobby();
+        // ═══════════════════════════════════════════════════════════════
+        // GAME DISPLAY
+        // ═══════════════════════════════════════════════════════════════
+        
+        function showGame(gameState) {
+            document.getElementById('waiting-room-section').style.display = 'none';
+            document.getElementById('game-section').style.display = 'block';
+            updateGameState(gameState);
         }
 
-        // Game functions
-        function showGame() {
-            document.getElementById('waitingScreen').style.display = 'none';
-            document.getElementById('gameScreen').style.display = 'block';
-        }
-
-        function updateGameUI() {
-            if (!gameState) return;
-
-            const playerIndex = gameState.players.findIndex(p => p.id === currentUser.id);
-            const positions = ['south', 'west', 'north', 'east'];
+        function updateGameState(gameState) {
+            // Update info bar
+            document.getElementById('turn-count').textContent = gameState.turnCount;
+            document.getElementById('prevailing-wind').textContent = gameState.prevailingWind;
+            document.getElementById('live-wall-count').textContent = gameState.liveWallCount;
+            document.getElementById('dead-wall-count').textContent = gameState.deadWallCount;
             
-            // Update each player area
-            gameState.players.forEach((player, i) => {
-                const relativePos = positions[(4 + i - playerIndex) % 4];
-                const isActive = gameState.currentPlayerIndex === i;
-                
-                // Update player info
-                document.getElementById(`name${capitalize(relativePos)}`).textContent = player.displayName;
-                document.getElementById(`wind${capitalize(relativePos)}`).textContent = player.wind;
-                document.getElementById(`score${capitalize(relativePos)}`).textContent = `${player.score}分`;
-                
-                // Update active state
-                const playerArea = document.getElementById(`player${capitalize(relativePos)}`);
-                if (isActive) {
-                    playerArea.classList.add('active');
-                } else {
-                    playerArea.classList.remove('active');
-                }
-
-                // Update tiles
-                const tilesContainer = document.getElementById(`tiles${capitalize(relativePos)}`);
-                if (relativePos === 'south') {
-                    // Show own tiles
-                    tilesContainer.innerHTML = player.hand.map((tile, idx) => 
-                        renderTile(tile, 'hand-tile', `onclick="selectTile(${idx})"`)
-                    ).join('');
-                } else {
-                    // Show tile backs for opponents
-                    tilesContainer.innerHTML = Array(player.hand.length).fill(
-                        '<div class="tile hand-tile" style="background: linear-gradient(135deg, #8b7355 0%, #6d5a47 100%);">🀫</div>'
-                    ).join('');
-                }
-
-                // Update melds
-                const meldsContainer = document.getElementById(`melds${capitalize(relativePos)}`);
-                meldsContainer.innerHTML = player.melds.map(meld => 
-                    `<div class="meld-group">${meld.tiles.map(t => 
-                        renderTile(t, 'meld-tile')
-                    ).join('')}</div>`
+            // Update players grid
+            const playersGrid = document.getElementById('players-grid');
+            playersGrid.innerHTML = gameState.players.map((player, index) => `
+                <div class="player-box ${index === gameState.currentPlayer ? 'active' : ''} ${player.isYou ? 'you' : ''}">
+                    <div class="player-header">
+                        <div>
+                            <div class="player-name ${player.isAI ? 'ai' : ''}">
+                                ${escapeHtml(player.name)} ${player.isYou ? '(You)' : ''}
+                            </div>
+                            <div class="furiten-badge ${player.isFuriten ? 'active' : ''}">
+                                🚫 Furiten
+                            </div>
+                        </div>
+                        <span class="player-wind">${player.wind}</span>
+                    </div>
+                    <div class="player-stats">
+                        <div class="stat-item">
+                            <span>Concealed:</span>
+                            <span>${player.concealedCount}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Exposed:</span>
+                            <span>${player.exposed.length}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span>Discards:</span>
+                            <span>${player.discards.length}</span>
+                        </div>
+                    </div>
+                    <div class="tiles-section">
+                        <div class="section-label">Discards</div>
+                        <div class="tiles-container">
+                            ${player.discards.slice(-5).map(tile => renderTile(tile, true)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update my hand
+            const myPlayer = gameState.players.find(p => p.isYou);
+            if (myPlayer && myPlayer.concealed) {
+                const myHand = document.getElementById('my-hand');
+                myHand.innerHTML = myPlayer.concealed.map((tile, index) => 
+                    renderTile(tile, false, index)
                 ).join('');
-            });
-
-            // Update discards
-            const discardsContainer = document.getElementById('discardsCenter');
-            discardsContainer.innerHTML = gameState.discardPile.map((tile, idx) => {
-                const isLast = idx === gameState.discardPile.length - 1;
-                return renderTile(tile, isLast ? 'last-discard' : 'discard-tile');
-            }).join('');
-
-            // Update status
-            const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-            document.getElementById('gameStatus').textContent = 
-                `${currentPlayer.displayName} 的回合 ${currentPlayer.wind}`;
-
+            }
+            
             // Update action buttons
-            updateActionButtons();
+            const isMyTurn = gameState.players[gameState.currentPlayer]?.isYou;
+            document.getElementById('btn-discard').disabled = !isMyTurn || selectedTileIndex === null;
+            
+            // Show/hide claim buttons
+            const canClaim = gameState.canClaim;
+            document.getElementById('btn-claim-win').style.display = canClaim ? 'block' : 'none';
+            document.getElementById('btn-skip').style.display = canClaim ? 'block' : 'none';
         }
 
-        function updateActionButtons() {
-            const isMyTurn = gameState.players[gameState.currentPlayerIndex].id === currentUser.id;
-            const playerIndex = gameState.players.findIndex(p => p.id === currentUser.id);
+        function renderTile(tile, isDiscarded = false, index = null) {
+            const tileText = tile.type === 'SUITED' 
+                ? tile.rank + tile.suit[0]
+                : tile.rank;
             
-            // Disable all claim buttons by default
-            ['btnChow', 'btnPung', 'btnKong', 'btnMahjong', 'btnSkip'].forEach(id => {
-                document.getElementById(id).disabled = true;
-            });
-
-            // Enable relevant buttons based on game state
-            if (gameState.claimWindow && gameState.claimWindow.players.includes(playerIndex)) {
-                const claims = gameState.claimWindow.validClaims[playerIndex];
-                if (claims.canChow) document.getElementById('btnChow').disabled = false;
-                if (claims.canPung) document.getElementById('btnPung').disabled = false;
-                if (claims.canKong) document.getElementById('btnKong').disabled = false;
-                if (claims.canMahjong) document.getElementById('btnMahjong').disabled = false;
-                document.getElementById('btnSkip').disabled = false;
-            }
+            const clickHandler = index !== null ? `onclick="selectTile(${index})"` : '';
+            const classes = `tile ${isDiscarded ? 'discarded' : ''}`;
+            
+            return `<div class="${classes}" ${clickHandler} data-tile="${tileText}">${tileText}</div>`;
         }
 
         function selectTile(index) {
-            const isMyTurn = gameState.players[gameState.currentPlayerIndex].id === currentUser.id;
-            if (!isMyTurn) return;
-
-            selectedTile = index;
-            socket.emit('discardTile', { roomCode: currentRoom.roomCode, tileIndex: index });
+            selectedTileIndex = index;
+            
+            // Visual feedback
+            const tiles = document.querySelectorAll('#my-hand .tile');
+            tiles.forEach((tile, i) => {
+                if (i === index) {
+                    tile.style.borderColor = '#22c55e';
+                    tile.style.borderWidth = '3px';
+                } else {
+                    tile.style.borderColor = '#d1d5db';
+                    tile.style.borderWidth = '2px';
+                }
+            });
+            
+            document.getElementById('btn-discard').disabled = false;
         }
 
-        function claimChow() {
-            socket.emit('claimChow', { roomCode: currentRoom.roomCode });
+        function discardSelected() {
+            if (selectedTileIndex === null) return;
+            
+            socket.emit('discardTile', { tileIndex: selectedTileIndex });
+            selectedTileIndex = null;
+        }
+
+        function claimWin() {
+            socket.emit('claimTile', { claimType: 'WIN' });
         }
 
         function claimPung() {
-            socket.emit('claimPung', { roomCode: currentRoom.roomCode });
-        }
-
-        function claimKong() {
-            socket.emit('claimKong', { roomCode: currentRoom.roomCode });
-        }
-
-        function declareMahjong() {
-            socket.emit('declareMahjong', { roomCode: currentRoom.roomCode });
+            socket.emit('claimTile', { claimType: 'PUNG' });
         }
 
         function skipClaim() {
-            socket.emit('skipClaim', { roomCode: currentRoom.roomCode });
+            socket.emit('skipClaim');
         }
 
-        // Chat functions
-        let chatPanelOpen = false;
-
-        function toggleChat() {
-            chatPanelOpen = !chatPanelOpen;
-            document.getElementById('chatPanel').classList.toggle('open');
-            
-            // Clear unread indicator when opening chat
-            if (chatPanelOpen) {
-                document.getElementById('chatToggleBtn').classList.remove('has-unread');
-            }
-        }
+        // ═══════════════════════════════════════════════════════════════
+        // CHAT
+        // ═══════════════════════════════════════════════════════════════
         
-        function logoutFromGame() {
-            if (!confirm('確定要登出嗎？AI將接替你的位置繼續遊戲。\nAre you sure? AI will replace you and continue the game.')) {
-                return;
+        function addChatMessage(data) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const gameMessagesDiv = document.getElementById('game-chat-messages');
+            
+            const messageHtml = `
+                <div class="chat-message">
+                    <span class="chat-username">${escapeHtml(data.username)}:</span>
+                    <span class="chat-text">${escapeHtml(data.message)}</span>
+                </div>
+            `;
+            
+            if (messagesDiv) {
+                messagesDiv.innerHTML += messageHtml;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                messagesDiv.classList.add('chat-blink');
+                setTimeout(() => messagesDiv.classList.remove('chat-blink'), 3000);
             }
             
-            // If in active game, notify server for AI replacement
-            if (currentRoom && currentRoom.game) {
-                socket.emit('playerLogout', {
-                    roomCode: currentRoom.roomCode,
-                    userId: currentUser.id
-                });
+            if (gameMessagesDiv) {
+                gameMessagesDiv.innerHTML += messageHtml;
+                gameMessagesDiv.scrollTop = gameMessagesDiv.scrollHeight;
+                gameMessagesDiv.classList.add('chat-blink');
+                setTimeout(() => gameMessagesDiv.classList.remove('chat-blink'), 3000);
             }
-            
-            // Clear session
-            localStorage.removeItem('token');
-            currentUser = null;
-            currentRoom = null;
-            
-            // Return to auth screen
-            document.getElementById('gameScreen').style.display = 'none';
-            document.getElementById('waitingScreen').style.display = 'none';
-            document.getElementById('lobbyScreen').style.display = 'none';
-            showAuthScreen();
         }
 
         function sendChat() {
-            const input = document.getElementById('chatInput');
+            const input = document.getElementById('chat-input');
             const message = input.value.trim();
             if (!message) return;
-
-            socket.emit('chatMessage', {
-                roomCode: currentRoom.roomCode,
-                message,
-                sender: currentUser.displayName || currentUser.display_name
-            });
-
+            
+            socket.emit('chatMessage', { message });
             input.value = '';
         }
 
-        function addChatMessage(msg) {
-            const container = document.getElementById('chatMessages');
-            const div = document.createElement('div');
-            div.className = `chat-message ${msg.isAI ? 'ai' : ''}`;
+        function sendGameChat() {
+            const input = document.getElementById('game-chat-input');
+            const message = input.value.trim();
+            if (!message) return;
             
-            const senderDiv = document.createElement('div');
-            senderDiv.className = 'chat-sender';
-            senderDiv.textContent = msg.sender;
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.textContent = msg.message;
-            
-            div.appendChild(senderDiv);
-            div.appendChild(messageDiv);
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            socket.emit('chatMessage', { message });
+            input.value = '';
         }
 
-        // Win modal
-        function showWinModal(result) {
-            document.getElementById('winnerName').textContent = 
-                `勝利者 Winner: ${escapeHtml(result.winner.displayName)} (${result.winner.wind})`;
+        function handleChatEnter(event) {
+            if (event.key === 'Enter') sendChat();
+        }
+
+        function handleGameChatEnter(event) {
+            if (event.key === 'Enter') sendGameChat();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // WIN MODAL
+        // ═══════════════════════════════════════════════════════════════
+        
+        function showWinModal(data) {
+            document.getElementById('winner-name').textContent = data.winner;
             
-            document.getElementById('finalScores').innerHTML = result.finalScores.map(p => 
-                `<div class="score-row">
-                    <span>${escapeHtml(p.displayName)}</span>
-                    <span>${p.score}分</span>
-                </div>`
-            ).join('');
-
-            document.getElementById('winModal').classList.add('show');
+            const breakdownDiv = document.getElementById('score-breakdown');
+            breakdownDiv.innerHTML = data.breakdown.map(item => `
+                <div class="breakdown-item">
+                    <span class="breakdown-pattern">${escapeHtml(item.pattern)}</span>
+                    <span class="breakdown-faan">+${item.faan} Faan</span>
+                </div>
+            `).join('');
+            
+            document.getElementById('total-faan').textContent = data.faan + ' Faan';
+            document.getElementById('total-points').textContent = data.points + ' Points';
+            
+            document.getElementById('score-modal').classList.add('active');
         }
 
-        function closeWinModal() {
-            document.getElementById('winModal').classList.remove('show');
-            socket.emit('leaveRoom', currentRoom.roomCode);
-            currentRoom = null;
-            gameState = null;
-            showLobby();
+        function closeScoreModal() {
+            document.getElementById('score-modal').classList.remove('active');
+            backToLobby();
         }
 
-        // Utility
-        function capitalize(str) {
-            return str.charAt(0).toUpperCase() + str.slice(1);
+        function backToLobby() {
+            document.getElementById('game-section').style.display = 'none';
+            document.getElementById('waiting-room-section').style.display = 'none';
+            document.getElementById('lobby-section').style.display = 'block';
+            
+            currentRoomId = null;
+            currentGameState = null;
+            selectedTileIndex = null;
+            
+            socket.emit('getLobbies');
         }
 
-        // Chat input enter key
-        document.addEventListener('DOMContentLoaded', () => {
-            const chatInput = document.getElementById('chatInput');
-            if (chatInput) {
-                chatInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') sendChat();
-                });
+        // ═══════════════════════════════════════════════════════════════
+        // INIT ON PAGE LOAD
+        // ═══════════════════════════════════════════════════════════════
+        
+        window.addEventListener('load', () => {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                token = savedToken;
+                // Auto-login would require validating token first
+                // For now, just show login screen
             }
         });
     </script>
