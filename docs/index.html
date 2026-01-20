@@ -496,6 +496,13 @@
             transform: translateY(-3px);
             box-shadow: 3px 3px 6px var(--tile-shadow);
         }
+        
+        /* PNG Tiles - inherit dimensions, add background properties */
+        .tile.tile-png {
+            background-color: transparent;
+            image-rendering: crisp-edges;
+            font-size: 0; /* Hide any fallback text */
+        }
 
         .tile.hand-tile {
             width: var(--tile-hand-w);
@@ -1034,7 +1041,21 @@
         let gameState = null;
         let selectedTile = null;
 
-        // Improved tile display mapping
+        // PNG Tile Graphics
+        let atlasData = null;
+        let usePNGTiles = false;
+        
+        const TILE_PNG_MAP = {
+            '1m':'tile_000','2m':'tile_001','3m':'tile_002','4m':'tile_003','5m':'tile_004',
+            '6m':'tile_005','7m':'tile_006','8m':'tile_007','9m':'tile_008','1p':'tile_009',
+            '2p':'tile_010','3p':'tile_011','4p':'tile_012','5p':'tile_013','6p':'tile_014',
+            '7p':'tile_015','8p':'tile_016','9p':'tile_017','1s':'tile_018','2s':'tile_019',
+            '3s':'tile_020','4s':'tile_021','5s':'tile_022','6s':'tile_023','7s':'tile_024',
+            '8s':'tile_025','9s':'tile_026','1z':'tile_027','2z':'tile_028','3z':'tile_029',
+            '4z':'tile_030','5z':'tile_031','6z':'tile_032','7z':'tile_033'
+        };
+
+        // Improved tile display mapping (Unicode fallback)
         const TILE_DISPLAY = {
             // Characters (萬)
             '1m': '一', '2m': '二', '3m': '三', '4m': '四', '5m': '五',
@@ -1050,6 +1071,19 @@
             // Dragons
             '5z': '中', '6z': '發', '7z': '白'
         };
+        
+        // Load PNG atlas
+        fetch('/assets/atlas.json')
+            .then(r => r.json())
+            .then(data => {
+                atlasData = data;
+                usePNGTiles = true;
+                console.log('✓ PNG tile atlas loaded:', data.meta.image);
+            })
+            .catch(e => {
+                console.warn('PNG tiles not available, using Unicode fallback:', e);
+                usePNGTiles = false;
+            });
 
         // Get tile CSS class for styling
         function getTileClass(tile) {
@@ -1059,6 +1093,39 @@
             if (['1z','2z','3z','4z'].includes(tile)) return 'tile-wind';
             if (['5z','6z','7z'].includes(tile)) return 'tile-dragon';
             return '';
+        }
+        
+        // Render tile as PNG or Unicode fallback
+        function renderTile(tile, className = '', onClick = '') {
+            if (usePNGTiles && atlasData && TILE_PNG_MAP[tile]) {
+                const tileId = TILE_PNG_MAP[tile];
+                const frame = atlasData.frames[tileId];
+                if (frame) {
+                    // Calculate background-size to scale 1088×1128 atlas to tile dimensions
+                    const tileWidth = 40; // Will be overridden by CSS for mobile
+                    const tileHeight = 56;
+                    const atlasWidth = atlasData.meta.size.w;
+                    const atlasHeight = atlasData.meta.size.h;
+                    const originalTileWidth = atlasData.meta.tileSize.w;
+                    const originalTileHeight = atlasData.meta.tileSize.h;
+                    
+                    const bgSizeW = (atlasWidth * tileWidth / originalTileWidth);
+                    const bgSizeH = (atlasHeight * tileHeight / originalTileHeight);
+                    
+                    const style = `
+                        background-image: url('/assets/atlas.png');
+                        background-position: -${frame.frame.x * tileWidth / originalTileWidth}px -${frame.frame.y * tileHeight / originalTileHeight}px;
+                        background-size: ${bgSizeW}px ${bgSizeH}px;
+                        background-repeat: no-repeat;
+                        image-rendering: crisp-edges;
+                    `;
+                    
+                    return `<div class="tile tile-png ${className}" style="${style}" ${onClick}></div>`;
+                }
+            }
+            
+            // Fallback to Unicode
+            return `<div class="tile ${getTileClass(tile)} ${className}" ${onClick}>${TILE_DISPLAY[tile] || tile}</div>`;
         }
 
         // Initialize - handle both loading and already-loaded states
@@ -1455,7 +1522,7 @@
                 if (relativePos === 'south') {
                     // Show own tiles
                     tilesContainer.innerHTML = player.hand.map((tile, idx) => 
-                        `<div class="tile hand-tile ${getTileClass(tile)}" onclick="selectTile(${idx})">${TILE_DISPLAY[tile] || tile}</div>`
+                        renderTile(tile, 'hand-tile', `onclick="selectTile(${idx})"`)
                     ).join('');
                 } else {
                     // Show tile backs for opponents
@@ -1468,7 +1535,7 @@
                 const meldsContainer = document.getElementById(`melds${capitalize(relativePos)}`);
                 meldsContainer.innerHTML = player.melds.map(meld => 
                     `<div class="meld-group">${meld.tiles.map(t => 
-                        `<div class="tile meld-tile ${getTileClass(t)}">${TILE_DISPLAY[t] || t}</div>`
+                        renderTile(t, 'meld-tile')
                     ).join('')}</div>`
                 ).join('');
             });
@@ -1477,7 +1544,7 @@
             const discardsContainer = document.getElementById('discardsCenter');
             discardsContainer.innerHTML = gameState.discardPile.map((tile, idx) => {
                 const isLast = idx === gameState.discardPile.length - 1;
-                return `<div class="tile ${isLast ? 'last-discard' : 'discard-tile'} ${getTileClass(tile)}">${TILE_DISPLAY[tile] || tile}</div>`;
+                return renderTile(tile, isLast ? 'last-discard' : 'discard-tile');
             }).join('');
 
             // Update status
