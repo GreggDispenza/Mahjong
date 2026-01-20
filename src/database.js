@@ -1,249 +1,380 @@
-const bcrypt = require('bcryptjs');
+/**
+ * ═══════════════════════════════════════════════════════════════════════
+ * HKOS MAHJONG - DATABASE MODULE (Supabase)
+ * ═══════════════════════════════════════════════════════════════════════
+ * 
+ * Handles all database operations with Supabase PostgreSQL
+ */
+
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcrypt');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+// ═══════════════════════════════════════════════════════════════════════
+// SUPABASE CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════
 
-let supabase = null;
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
-if (supabaseUrl && supabaseKey) {
-    supabase = createClient(supabaseUrl, supabaseKey);
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('⚠️  WARNING: Supabase credentials not configured!');
+    console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables');
 }
 
-// Create user
-async function createUser(username, displayName, password) {
-    const passwordHash = await bcrypt.hash(password, 10);
-    
-    if (!supabase) {
-        throw new Error('Database not configured');
-    }
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const { data, error } = await supabase
-        .from('users')
-        .insert([
-            {
-                username,
-                display_name: displayName,
-                password_hash: passwordHash,
-                is_online: true
-            }
-        ])
-        .select()
-        .single();
+// Bcrypt salt rounds
+const SALT_ROUNDS = 10;
 
-    if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-            throw new Error('Username already exists');
+// ═══════════════════════════════════════════════════════════════════════
+// USER AUTHENTICATION
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Create a new user
+ * @param {string} username 
+ * @param {string} password 
+ * @returns {Promise<{success: boolean, userId?: number, username?: string, error?: string}>}
+ */
+async function createUser(username, password) {
+    try {
+        // Check if username already exists
+        const { data: existing, error: checkError } = await supabase
+            .from('users')
+            .select('user_id')
+            .eq('username', username)
+            .single();
+        
+        if (existing) {
+            return { 
+                success: false, 
+                error: 'Username already taken' 
+            };
         }
-        throw error;
+        
+        // Hash password
+        const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+        
+        // Insert new user
+        const { data, error } = await supabase
+            .from('users')
+            .insert([
+                { 
+                    username, 
+                    password_hash,
+                    created_at: new Date().toISOString()
+                }
+            ])
+            .select('user_id, username')
+            .single();
+        
+        if (error) {
+            console.error('Create user error:', error);
+            return { 
+                success: false, 
+                error: 'Failed to create user' 
+            };
+        }
+        
+        return {
+            success: true,
+            userId: data.user_id,
+            username: data.username
+        };
+        
+    } catch (error) {
+        console.error('Create user exception:', error);
+        return { 
+            success: false, 
+            error: 'Database error' 
+        };
     }
-
-    // Create player stats
-    await supabase
-        .from('player_stats')
-        .insert([{ user_id: data.id }]);
-
-    return {
-        id: data.id,
-        username: data.username,
-        display_name: data.display_name,
-        displayName: data.display_name, // Add both formats for compatibility
-        isOnline: data.is_online
-    };
 }
 
-// Authenticate user
-async function authenticateUser(username, password) {
-    if (!supabase) {
-        throw new Error('Database not configured');
+/**
+ * Verify user credentials
+ * @param {string} username 
+ * @param {string} password 
+ * @returns {Promise<{success: boolean, userId?: number, username?: string, error?: string}>}
+ */
+async function verifyUser(username, password) {
+    try {
+        // Get user by username
+        const { data, error } = await supabase
+            .from('users')
+            .select('user_id, username, password_hash')
+            .eq('username', username)
+            .single();
+        
+        if (error || !data) {
+            return { 
+                success: false, 
+                error: 'Invalid username or password' 
+            };
+        }
+        
+        // Verify password
+        const isValid = await bcrypt.compare(password, data.password_hash);
+        
+        if (!isValid) {
+            return { 
+                success: false, 
+                error: 'Invalid username or password' 
+            };
+        }
+        
+        // Update last login
+        await supabase
+            .from('users')
+            .update({ last_login: new Date().toISOString() })
+            .eq('user_id', data.user_id);
+        
+        return {
+            success: true,
+            userId: data.user_id,
+            username: data.username
+        };
+        
+    } catch (error) {
+        console.error('Verify user exception:', error);
+        return { 
+            success: false, 
+            error: 'Database error' 
+        };
     }
-
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .single();
-
-    if (error || !data) {
-        throw new Error('Invalid credentials');
-    }
-
-    const validPassword = await bcrypt.compare(password, data.password_hash);
-    if (!validPassword) {
-        throw new Error('Invalid credentials');
-    }
-
-    return {
-        id: data.id,
-        username: data.username,
-        display_name: data.display_name,
-        displayName: data.display_name, // Add both formats for compatibility
-        isOnline: data.is_online
-    };
 }
 
-// Get user by ID
-async function getUser(userId) {
-    if (!supabase) {
-        throw new Error('Database not configured');
+// ═══════════════════════════════════════════════════════════════════════
+// GAME STATISTICS
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Update player statistics after a game
+ * @param {number} userId 
+ * @param {Object} stats - { gamesWon: 1, totalScore: 10 }
+ * @returns {Promise<{success: boolean}>}
+ */
+async function updatePlayerStats(userId, stats) {
+    try {
+        const { gamesWon = 0, totalScore = 0 } = stats;
+        
+        // Get current stats
+        const { data: current } = await supabase
+            .from('users')
+            .select('games_played, games_won, total_score')
+            .eq('user_id', userId)
+            .single();
+        
+        if (!current) {
+            return { success: false, error: 'User not found' };
+        }
+        
+        // Update stats
+        const { error } = await supabase
+            .from('users')
+            .update({
+                games_played: (current.games_played || 0) + 1,
+                games_won: (current.games_won || 0) + gamesWon,
+                total_score: (current.total_score || 0) + totalScore,
+                last_login: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+        
+        if (error) {
+            console.error('Update stats error:', error);
+            return { success: false };
+        }
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('Update stats exception:', error);
+        return { success: false };
     }
-
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-    if (error) {
-        throw error;
-    }
-
-    return {
-        id: data.id,
-        username: data.username,
-        display_name: data.display_name,
-        displayName: data.display_name, // Add both formats for compatibility
-        isOnline: data.is_online
-    };
 }
 
-// Set user online status
-async function setUserOnline(userId, isOnline) {
-    if (!supabase) {
-        return;
-    }
-
-    await supabase
-        .from('users')
-        .update({ is_online: isOnline })
-        .eq('id', userId);
-}
-
-// Get leaderboard
+/**
+ * Get leaderboard
+ * @param {number} limit - Number of top players to return
+ * @returns {Promise<Array>}
+ */
 async function getLeaderboard(limit = 10) {
-    if (!supabase) {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('username, games_played, games_won, total_score')
+            .gt('games_played', 0)
+            .order('games_won', { ascending: false })
+            .order('total_score', { ascending: false })
+            .limit(limit);
+        
+        if (error) {
+            console.error('Leaderboard error:', error);
+            return [];
+        }
+        
+        return data || [];
+        
+    } catch (error) {
+        console.error('Leaderboard exception:', error);
         return [];
     }
-
-    const { data, error } = await supabase
-        .from('player_stats')
-        .select(`
-            *,
-            users!inner(display_name)
-        `)
-        .order('total_score', { ascending: false })
-        .limit(limit);
-
-    if (error) {
-        console.error('Leaderboard error:', error);
-        return [];
-    }
-
-    return data.map(row => ({
-        display_name: row.users.display_name,
-        games_played: row.games_played,
-        games_won: row.games_won,
-        total_score: row.total_score,
-        highest_score: row.highest_score,
-        win_streak: row.win_streak
-    }));
 }
 
-// Create game record
-async function createGame(roomCode, players) {
-    if (!supabase) {
+/**
+ * Get user stats
+ * @param {number} userId 
+ * @returns {Promise<Object|null>}
+ */
+async function getUserStats(userId) {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('username, games_played, games_won, total_score, created_at')
+            .eq('user_id', userId)
+            .single();
+        
+        if (error) {
+            console.error('Get user stats error:', error);
+            return null;
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error('Get user stats exception:', error);
         return null;
     }
+}
 
-    const { data: game, error: gameError } = await supabase
-        .from('games')
-        .insert([{
-            room_code: roomCode,
-            status: 'active'
-        }])
-        .select()
-        .single();
+// ═══════════════════════════════════════════════════════════════════════
+// GAME STATE PERSISTENCE (Optional - for future use)
+// ═══════════════════════════════════════════════════════════════════════
 
-    if (gameError) {
-        console.error('Create game error:', gameError);
+/**
+ * Save game state to database
+ * @param {string} gameId 
+ * @param {Object} gameData 
+ * @returns {Promise<{success: boolean}>}
+ */
+async function saveGameState(gameId, gameData) {
+    try {
+        const { error } = await supabase
+            .from('games')
+            .upsert({
+                game_id: gameId,
+                prevailing_wind: gameData.prevailingWind,
+                dealer_id: gameData.dealerId,
+                live_wall: JSON.stringify(gameData.liveWall),
+                dead_wall: JSON.stringify(gameData.deadWall),
+                live_wall_pointer: gameData.livePointer || 0,
+                dead_wall_pointer: gameData.deadPointer || 0,
+                is_active: gameData.isActive,
+                turn_count: gameData.turnCount || 0
+            });
+        
+        if (error) {
+            console.error('Save game error:', error);
+            return { success: false };
+        }
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('Save game exception:', error);
+        return { success: false };
+    }
+}
+
+/**
+ * Load game state from database
+ * @param {string} gameId 
+ * @returns {Promise<Object|null>}
+ */
+async function loadGameState(gameId) {
+    try {
+        const { data, error } = await supabase
+            .from('games')
+            .select('*')
+            .eq('game_id', gameId)
+            .single();
+        
+        if (error || !data) {
+            return null;
+        }
+        
+        return {
+            gameId: data.game_id,
+            prevailingWind: data.prevailing_wind,
+            dealerId: data.dealer_id,
+            liveWall: JSON.parse(data.live_wall),
+            deadWall: JSON.parse(data.dead_wall),
+            livePointer: data.live_wall_pointer,
+            deadPointer: data.dead_wall_pointer,
+            isActive: data.is_active,
+            turnCount: data.turn_count
+        };
+        
+    } catch (error) {
+        console.error('Load game exception:', error);
         return null;
     }
-
-    // Create participants
-    const participants = players.map((player, index) => ({
-        game_id: game.id,
-        user_id: player.id,
-        seat_wind: ['East', 'South', 'West', 'North'][index]
-    }));
-
-    await supabase
-        .from('game_participants')
-        .insert(participants);
-
-    return game.id;
 }
 
-// End game
-async function endGame(gameId, winnerId) {
-    if (!supabase || !gameId) {
-        return;
-    }
+// ═══════════════════════════════════════════════════════════════════════
+// DATABASE HEALTH CHECK
+// ═══════════════════════════════════════════════════════════════════════
 
-    await supabase
-        .from('games')
-        .update({
-            ended_at: new Date().toISOString(),
-            winner_id: winnerId,
-            status: 'completed'
-        })
-        .eq('id', gameId);
+/**
+ * Test database connection
+ * @returns {Promise<boolean>}
+ */
+async function testConnection() {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('count')
+            .limit(1);
+        
+        if (error) {
+            console.error('Database connection test failed:', error);
+            return false;
+        }
+        
+        console.log('✅ Database connection successful');
+        return true;
+        
+    } catch (error) {
+        console.error('Database connection test exception:', error);
+        return false;
+    }
 }
 
-// Update player stats
-async function updatePlayerStats(userId, score, isWinner) {
-    if (!supabase) {
-        return;
-    }
-
-    const { data: stats } = await supabase
-        .from('player_stats')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-    if (!stats) {
-        return;
-    }
-
-    const updates = {
-        games_played: stats.games_played + 1,
-        total_score: stats.total_score + score
-    };
-
-    if (isWinner) {
-        updates.games_won = stats.games_won + 1;
-        updates.win_streak = stats.win_streak + 1;
-    } else {
-        updates.win_streak = 0;
-    }
-
-    if (score > stats.highest_score) {
-        updates.highest_score = score;
-    }
-
-    await supabase
-        .from('player_stats')
-        .update(updates)
-        .eq('user_id', userId);
-}
+// ═══════════════════════════════════════════════════════════════════════
+// EXPORTS
+// ═══════════════════════════════════════════════════════════════════════
 
 module.exports = {
+    // Authentication
     createUser,
-    authenticateUser,
-    getUser,
-    setUserOnline,
+    verifyUser,
+    
+    // Statistics
+    updatePlayerStats,
     getLeaderboard,
-    createGame,
-    endGame,
-    updatePlayerStats
+    getUserStats,
+    
+    // Game state (optional)
+    saveGameState,
+    loadGameState,
+    
+    // Utilities
+    testConnection,
+    
+    // Raw client (for advanced queries)
+    supabase
 };
+
+// Test connection on module load
+testConnection();
