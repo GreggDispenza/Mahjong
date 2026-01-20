@@ -1150,7 +1150,6 @@
             // Check if already logged in
             const token = localStorage.getItem('token');
             if (token) {
-                console.log('Found token, checking auth...');
                 fetch('/api/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
@@ -1344,6 +1343,17 @@
             location.reload();
         }
 
+        // Security: Escape HTML to prevent XSS
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         function showError(msg) {
             const errorDiv = document.getElementById('errorMsg');
             errorDiv.textContent = msg;
@@ -1374,37 +1384,81 @@
                 const res = await fetch('/api/leaderboard');
                 const data = await res.json();
                 const list = document.getElementById('leaderboardList');
-                list.innerHTML = data.map((player, i) => `
+                list.innerHTML = data.map((player, i) => {
+                    const safeName = escapeHtml(player.display_name);
+                    return `
                     <li class="leaderboard-item">
                         <div>
                             <span class="rank">#${i + 1}</span>
-                            ${player.display_name}
+                            ${safeName}
                         </div>
                         <div>🏆 ${player.games_won}勝 ${player.total_score}分</div>
                     </li>
-                `).join('');
+                    `;
+                }).join('');
             } catch (err) {
                 console.error('Failed to load leaderboard:', err);
             }
         }
 
-        function updateRoomsList(lobbies) {
+        function updateRoomsList(data) {
             const list = document.getElementById('roomsList');
-            if (lobbies.length === 0) {
+            
+            const waiting = data.waiting || [];
+            const playing = data.playing || [];
+            
+            if (waiting.length === 0 && playing.length === 0) {
                 list.innerHTML = '<p>沒有可用房間 No rooms available</p>';
                 return;
             }
-
-            list.innerHTML = lobbies.map(room => `
-                <div class="room-item">
-                    <div class="room-info">
-                        <div class="room-code">${room.roomCode}</div>
+            
+            let html = '';
+            
+            // Waiting rooms (can join)
+            if (waiting.length > 0) {
+                html += '<h3 style="color: var(--gold); margin: 1rem 0 0.5rem 0;">等待中 Waiting Rooms</h3>';
+                html += waiting.map(room => `
+                    <div class="room-item">
+                        <div class="room-info">
+                            <div class="room-code">${room.roomCode}</div>
+                            <div style="font-size: 0.9rem; color: #ccc;">
+                                ${room.humanCount} human${room.humanCount !== 1 ? 's' : ''} 
+                                + ${room.playerCount - room.humanCount} AI
+                            </div>
+                        </div>
+                        <button class="btn-small btn-join" onclick="joinRoom('${room.roomCode}')">
+                            加入 Join
+                        </button>
                     </div>
-                    <button class="btn-small btn-join" onclick="joinRoom('${room.roomCode}')">
-                        加入 Join
-                    </button>
-                </div>
-            `).join('');
+                `).join('');
+            }
+            
+            // Games in progress (view only)
+            if (playing.length > 0) {
+                html += '<h3 style="color: var(--red); margin: 1.5rem 0 0.5rem 0;">🎮 進行中 Games In Progress</h3>';
+                html += playing.map(game => `
+                    <div class="room-item" style="border-left: 3px solid var(--red); background: rgba(211, 47, 47, 0.1);">
+                        <div class="room-info">
+                            <div class="room-code">${game.roomCode}</div>
+                            <div style="font-size: 0.85rem; color: #ccc; margin-top: 0.3rem;">
+                                👤 Players: ${game.players.map(p => 
+                                    `<span style="color: ${p.isAI ? '#888' : 'var(--gold)'}">
+                                        ${escapeHtml(p.displayName)}${p.wind ? ' (' + p.wind + ')' : ''}
+                                    </span>`
+                                ).join(', ')}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.2rem;">
+                                🎲 Turn: ${escapeHtml(game.currentPlayer)} | Discards: ${game.discardCount}
+                            </div>
+                        </div>
+                        <button class="btn-small" disabled style="opacity: 0.5; cursor: not-allowed;">
+                            進行中 Playing
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
+            list.innerHTML = html;
         }
 
         function createRoom() {
@@ -1466,7 +1520,7 @@
                 return `
                     <div class="player-slot ${player ? 'filled' : ''}">
                         <span class="wind-label">${wind}</span>
-                        <span>${player ? player.displayName : '等待中... Waiting...'}</span>
+                        <span>${player ? escapeHtml(player.displayName) : '等待中... Waiting...'}</span>
                     </div>
                 `;
             }).join('');
@@ -1660,10 +1714,16 @@
             const container = document.getElementById('chatMessages');
             const div = document.createElement('div');
             div.className = `chat-message ${msg.isAI ? 'ai' : ''}`;
-            div.innerHTML = `
-                <div class="chat-sender">${msg.sender}</div>
-                <div>${msg.message}</div>
-            `;
+            
+            const senderDiv = document.createElement('div');
+            senderDiv.className = 'chat-sender';
+            senderDiv.textContent = msg.sender;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = msg.message;
+            
+            div.appendChild(senderDiv);
+            div.appendChild(messageDiv);
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
@@ -1671,11 +1731,11 @@
         // Win modal
         function showWinModal(result) {
             document.getElementById('winnerName').textContent = 
-                `勝利者 Winner: ${result.winner.displayName} (${result.winner.wind})`;
+                `勝利者 Winner: ${escapeHtml(result.winner.displayName)} (${result.winner.wind})`;
             
             document.getElementById('finalScores').innerHTML = result.finalScores.map(p => 
                 `<div class="score-row">
-                    <span>${p.displayName}</span>
+                    <span>${escapeHtml(p.displayName)}</span>
                     <span>${p.score}分</span>
                 </div>`
             ).join('');
