@@ -34,6 +34,14 @@ class MahjongGame {
         this.claimWindow = null;
         this.gameOver = false;
         this.lastDiscard = null;
+        
+        // Track each player's play history for AI replacement
+        this.playHistory = players.map(() => ({
+            discards: [],        // Tiles they discarded
+            claims: [],          // Pung/Kong/Chow they made
+            discardPattern: {},  // Frequency of tile types discarded
+            claimPattern: {}     // Types of claims made
+        }));
 
         this.dealInitialTiles();
     }
@@ -118,6 +126,12 @@ class MahjongGame {
         const tile = currentPlayer.hand.splice(tileIndex, 1)[0];
         this.discardPile.push(tile);
         this.lastDiscard = tile;
+        
+        // Track discard in play history
+        this.playHistory[this.currentPlayerIndex].discards.push(tile);
+        const tileType = tile[1]; // m, p, s, z
+        this.playHistory[this.currentPlayerIndex].discardPattern[tileType] = 
+            (this.playHistory[this.currentPlayerIndex].discardPattern[tileType] || 0) + 1;
 
         // Check if other players can claim
         this.checkClaims(tile);
@@ -249,6 +263,11 @@ class MahjongGame {
             });
             player.melds.push({ type: 'chow', tiles: [tile, ...tiles].sort() });
         }
+        
+        // Track claim in play history
+        this.playHistory[playerIndex].claims.push({ type: claimType, tile });
+        this.playHistory[playerIndex].claimPattern[claimType] = 
+            (this.playHistory[playerIndex].claimPattern[claimType] || 0) + 1;
 
         this.currentPlayerIndex = playerIndex;
         this.claimWindow = null;
@@ -286,29 +305,60 @@ class MahjongGame {
         const player = this.players[this.currentPlayerIndex];
         
         if (!player.isAI) return null;
+        
+        const history = this.playHistory[this.currentPlayerIndex];
+        const hasHistory = history && (history.discards.length > 0 || history.claims.length > 0);
 
         // AI decision logic
         if (this.claimWindow) {
             const claims = this.claimWindow.validClaims[this.currentPlayerIndex];
             
+            // If learned from human, adjust probabilities based on their claim pattern
+            let kongProb = 0.2, pungProb = 0.3, chowProb = 0.6;
+            if (hasHistory && history.claimPattern) {
+                // Human who made many kongs? AI will be more aggressive with kong
+                if (history.claimPattern.kong > 2) kongProb = 0.1;
+                if (history.claimPattern.pung > 2) pungProb = 0.2;
+                if (history.claimPattern.chow > 2) chowProb = 0.4;
+            }
+            
             if (claims.canMahjong && Math.random() > 0.05) {
                 return { type: 'claim', claimType: 'mahjong' };
             }
-            if (claims.canKong && Math.random() > 0.2) {
+            if (claims.canKong && Math.random() > kongProb) {
                 return { type: 'claim', claimType: 'kong' };
             }
-            if (claims.canPung && Math.random() > 0.3) {
+            if (claims.canPung && Math.random() > pungProb) {
                 return { type: 'claim', claimType: 'pung' };
             }
-            if (claims.canChow && Math.random() > 0.6) {
+            if (claims.canChow && Math.random() > chowProb) {
                 return { type: 'claim', claimType: 'chow' };
             }
             
             return { type: 'skip' };
         }
 
-        // Discard strategy: discard first tile (simplified)
-        const tileIndex = Math.floor(Math.random() * player.hand.length);
+        // Discard strategy: if learned from human, prefer similar tile types
+        let tileIndex;
+        if (hasHistory && history.discardPattern && Object.keys(history.discardPattern).length > 0) {
+            // Find most discarded tile type by human
+            const preferredType = Object.entries(history.discardPattern)
+                .sort(([,a], [,b]) => b - a)[0][0];
+            
+            // Try to discard similar type
+            const similarTiles = player.hand
+                .map((tile, idx) => ({ tile, idx }))
+                .filter(({ tile }) => tile[1] === preferredType);
+            
+            if (similarTiles.length > 0) {
+                tileIndex = similarTiles[Math.floor(Math.random() * similarTiles.length)].idx;
+            } else {
+                tileIndex = Math.floor(Math.random() * player.hand.length);
+            }
+        } else {
+            // Default: random discard
+            tileIndex = Math.floor(Math.random() * player.hand.length);
+        }
         return { type: 'discard', tileIndex };
     }
 
