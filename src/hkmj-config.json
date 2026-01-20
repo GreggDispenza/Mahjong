@@ -1,5 +1,3 @@
-File Name: hkmj-config.json This file defines the immutable laws of the game. Claude will use this as its "Bible" to prevent game fouls.
-
 {
   "engine_metadata": {
     "variant": "Hong Kong Old Style (HKOS)",
