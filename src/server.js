@@ -451,6 +451,63 @@ io.on('connection', (socket) => {
     socket.on('getLobbies', () => {
         socket.emit('lobbiesUpdate', getLobbies());
     });
+    
+    socket.on('playerLogout', ({ roomCode, userId }) => {
+        const room = rooms.get(roomCode);
+        if (!room || !room.game) return;
+        
+        // Find player index
+        const playerIndex = room.game.players.findIndex(p => p.id === userId);
+        if (playerIndex === -1) return;
+        
+        const leavingPlayer = room.game.players[playerIndex];
+        
+        // Create AI replacement that inherits game state and learns from history
+        const aiPlayer = {
+            id: `ai-replacement-${Date.now()}`,
+            username: `AI-Replacement-${playerIndex}`,
+            displayName: `電腦接替 AI (${leavingPlayer.wind})`,
+            isAI: true,
+            // Inherit complete game state
+            hand: [...leavingPlayer.hand],
+            melds: [...leavingPlayer.melds],
+            score: leavingPlayer.score,
+            wind: leavingPlayer.wind,
+            isWinner: leavingPlayer.isWinner
+        };
+        
+        // Replace in both room and game
+        room.players[playerIndex] = aiPlayer;
+        room.game.players[playerIndex] = aiPlayer;
+        
+        // Play history is already tracked in game.playHistory[playerIndex]
+        // AI will read it via getAIMove()
+        
+        console.log(`Player ${userId} replaced with AI at position ${playerIndex}`);
+        console.log(`AI inherits: ${aiPlayer.hand.length} tiles, ${aiPlayer.melds.length} melds, score ${aiPlayer.score}`);
+        console.log(`Play history: ${room.game.playHistory[playerIndex].discards.length} discards, ${room.game.playHistory[playerIndex].claims.length} claims`);
+        
+        // Notify all players in room
+        io.to(roomCode).emit('playerReplaced', { 
+            playerIndex, 
+            aiPlayer: {
+                displayName: aiPlayer.displayName,
+                wind: aiPlayer.wind,
+                isAI: true
+            },
+            message: `${leavingPlayer.displayName} 離開了，由AI接替 ${leavingPlayer.displayName} left, AI continues`
+        });
+        
+        // Update game state for all players
+        io.to(roomCode).emit('gameUpdate', room.game.getState());
+        
+        // If it's this player's turn, AI takes over immediately
+        if (room.game.currentPlayerIndex === playerIndex) {
+            setTimeout(() => {
+                handleAITurn(roomCode);
+            }, 500);
+        }
+    });
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
