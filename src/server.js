@@ -252,12 +252,14 @@ io.on('connection', (socket) => {
         if (decoded) {
             socket.userId = decoded.userId;
             socket.username = decoded.username;
+            socket.displayName = decoded.name || decoded.username;
             userSockets.set(socket.userId, socket.id);
             
             socket.emit('authenticated', {
                 success: true,
                 userId: decoded.userId,
-                username: decoded.username
+                username: decoded.username,
+                name: decoded.name || decoded.username
             });
             
             // Send current lobbies
@@ -287,7 +289,7 @@ io.on('connection', (socket) => {
             players: [
                 {
                     id: socket.userId,
-                    name: sanitizeInput(socket.username || 'Player'),
+                    name: sanitizeInput(socket.displayName || socket.username || 'Player'),
                     isAI: false,
                     socketId: socket.id
                 }
