@@ -1221,14 +1221,39 @@
             updateRoomsList(data);
         });
 
+        socket.on('lobbies', (data) => {
+            updateRoomsList(data);
+        });
+
         socket.on('roomCreated', (data) => {
             currentRoom = data.roomId;
-            showStatus('房间已创建，等待其他玩家... / Room created, waiting for players...');
+            console.log('Room created:', data);
+            
+            // Hide lobby, show game room
+            document.getElementById('lobby-section').style.display = 'none';
+            document.getElementById('lobby-chat-section').style.display = 'none';
+            document.getElementById('game-table-section').style.display = 'block';
+            
+            // Show waiting message
+            showStatus('房间已创建，等待其他玩家加入... / Room created, waiting for players to join...');
+            
+            // Update room info
+            updateRoomInfo(data);
         });
 
         socket.on('roomJoined', (data) => {
             currentRoom = data.roomId;
-            showStatus('已加入房间 / Joined room');
+            console.log('Room joined:', data);
+            
+            // Hide lobby, show game room
+            document.getElementById('lobby-section').style.display = 'none';
+            document.getElementById('lobby-chat-section').style.display = 'none';
+            document.getElementById('game-table-section').style.display = 'block';
+            
+            showStatus('已加入房间，等待游戏开始... / Joined room, waiting for game to start...');
+            
+            // Update room info
+            updateRoomInfo(data);
         });
 
         socket.on('gameStart', (data) => {
@@ -1254,6 +1279,42 @@
         socket.on('error', (data) => {
             showStatus(data.message, true);
         });
+
+        function updateRoomInfo(roomData) {
+            if (!roomData || !roomData.players) return;
+            
+            // Update players display in waiting room
+            const playersDisplay = document.getElementById('players-display');
+            if (playersDisplay) {
+                playersDisplay.innerHTML = roomData.players.map((player, index) => {
+                    const isMe = player.id === myPlayerId;
+                    const playerWind = ['东 East', '南 South', '西 West', '北 North'][index] || '';
+                    
+                    return `
+                        <div class="player-info ${isMe ? 'active' : ''}">
+                            <div class="player-name">
+                                ${player.name} ${isMe ? '(我 Me)' : ''}
+                            </div>
+                            <div class="player-wind">
+                                ${playerWind}
+                            </div>
+                            <div>
+                                ${player.isAI ? '🤖 AI 玩家' : '👤 真人玩家'}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add AI placeholders for empty slots
+                for (let i = roomData.players.length; i < 4; i++) {
+                    playersDisplay.innerHTML += `
+                        <div class="player-info" style="opacity: 0.5;">
+                            <div class="player-name">等待玩家... / Waiting...</div>
+                        </div>
+                    `;
+                }
+            }
+        }
 
         function showStatus(message, isError = false) {
             const statusDiv = document.getElementById('game-status');
