@@ -37,11 +37,20 @@ const SALT_ROUNDS = 10;
 /**
  * Create a new user
  * @param {string} username 
+ * @param {string} name 
  * @param {string} password 
- * @returns {Promise<{success: boolean, userId?: number, username?: string, error?: string}>}
+ * @returns {Promise<{success: boolean, userId?: number, username?: string, name?: string, error?: string}>}
  */
-async function createUser(username, password) {
+async function createUser(username, name, password) {
     try {
+        // Validate password length
+        if (password.length < 6) {
+            return { 
+                success: false, 
+                error: 'Password must be at least 6 characters' 
+            };
+        }
+        
         // Check if username already exists
         const { data: existing, error: checkError } = await supabase
             .from('users')
@@ -64,12 +73,13 @@ async function createUser(username, password) {
             .from('users')
             .insert([
                 { 
-                    username, 
+                    username,
+                    name: name || username,  // Use username as fallback
                     password_hash,
                     created_at: new Date().toISOString()
                 }
             ])
-            .select('user_id, username')
+            .select('user_id, username, name')
             .single();
         
         if (error) {
@@ -83,7 +93,8 @@ async function createUser(username, password) {
         return {
             success: true,
             userId: data.user_id,
-            username: data.username
+            username: data.username,
+            name: data.name
         };
         
     } catch (error) {
