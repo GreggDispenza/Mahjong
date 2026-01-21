@@ -658,19 +658,34 @@
                 <input type="text" id="username" placeholder="输入用户名 / Enter username">
             </div>
             
+            <div class="form-group" id="name-group" style="display: none;">
+                <label>
+                    姓名 <span class="english">Name</span>
+                </label>
+                <input type="text" id="name" placeholder="输入姓名 / Enter your name">
+            </div>
+            
             <div class="form-group">
                 <label>
-                    密码 <span class="english">Password</span>
+                    密码 (最少6位) <span class="english">Password (min 6 chars)</span>
                 </label>
                 <input type="password" id="password" placeholder="输入密码 / Enter password">
             </div>
             
-            <button class="btn-primary" onclick="login()">
+            <button class="btn-primary" id="btn-login" onclick="login()">
                 <span class="chinese">登录</span> / Login
             </button>
             
-            <button class="btn-secondary" onclick="register()">
+            <button class="btn-secondary" id="btn-register" onclick="showRegisterForm()">
                 <span class="chinese">注册新账户</span> / Register New Account
+            </button>
+            
+            <button class="btn-primary" id="btn-register-submit" onclick="register()" style="display: none;">
+                <span class="chinese">提交注册</span> / Submit Registration
+            </button>
+            
+            <button class="btn-secondary" id="btn-back-login" onclick="showLoginForm()" style="display: none;">
+                <span class="chinese">返回登录</span> / Back to Login
             </button>
             
             <div id="auth-message" style="margin-top: 20px; color: #DC143C; text-align: center;"></div>
@@ -855,7 +870,25 @@
         // AUTHENTICATION
         // ═══════════════════════════════════════════════════════════════
 
-        function login() {
+        function showRegisterForm() {
+            document.getElementById('name-group').style.display = 'block';
+            document.getElementById('btn-login').style.display = 'none';
+            document.getElementById('btn-register').style.display = 'none';
+            document.getElementById('btn-register-submit').style.display = 'block';
+            document.getElementById('btn-back-login').style.display = 'block';
+            document.getElementById('auth-message').textContent = '';
+        }
+
+        function showLoginForm() {
+            document.getElementById('name-group').style.display = 'none';
+            document.getElementById('btn-login').style.display = 'block';
+            document.getElementById('btn-register').style.display = 'block';
+            document.getElementById('btn-register-submit').style.display = 'none';
+            document.getElementById('btn-back-login').style.display = 'none';
+            document.getElementById('auth-message').textContent = '';
+        }
+
+        async function login() {
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
@@ -864,15 +897,41 @@
                 return;
             }
             
-            socket.emit('login', { username, password });
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.username;
+                    myPlayerId = data.userId;
+                    localStorage.setItem('token', data.token);
+                    document.getElementById('display-username').textContent = data.name || data.username;
+                    document.getElementById('auth-section').style.display = 'none';
+                    document.getElementById('game-section').style.display = 'block';
+                    document.getElementById('main-header').style.display = 'flex';
+                    
+                    // Connect socket with token
+                    socket.emit('authenticate', { token: data.token });
+                } else {
+                    showAuthMessage(data.error || '登录失败 / Login failed');
+                }
+            } catch (error) {
+                showAuthMessage('登录错误 / Login error: ' + error.message);
+            }
         }
 
-        function register() {
+        async function register() {
             const username = document.getElementById('username').value.trim();
+            const name = document.getElementById('name').value.trim();
             const password = document.getElementById('password').value;
             
-            if (!username || !password) {
-                showAuthMessage('请输入用户名和密码 / Please enter username and password');
+            if (!username || !name || !password) {
+                showAuthMessage('请填写所有字段 / Please fill all fields');
                 return;
             }
             
@@ -881,16 +940,48 @@
                 return;
             }
             
-            socket.emit('register', { username, password });
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, name, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAuthMessage('注册成功！正在登录... / Registration successful! Logging in...');
+                    
+                    // Auto-login after registration
+                    currentUser = data.username;
+                    myPlayerId = data.userId;
+                    localStorage.setItem('token', data.token);
+                    
+                    setTimeout(() => {
+                        document.getElementById('display-username').textContent = data.name || data.username;
+                        document.getElementById('auth-section').style.display = 'none';
+                        document.getElementById('game-section').style.display = 'block';
+                        document.getElementById('main-header').style.display = 'flex';
+                        
+                        // Connect socket with token
+                        socket.emit('authenticate', { token: data.token });
+                    }, 1000);
+                } else {
+                    showAuthMessage(data.error || '注册失败 / Registration failed');
+                }
+            } catch (error) {
+                showAuthMessage('注册错误 / Registration error: ' + error.message);
+            }
         }
 
         function logout() {
-            socket.emit('logout');
+            localStorage.removeItem('token');
             currentUser = null;
             currentRoom = null;
             document.getElementById('auth-section').style.display = 'block';
             document.getElementById('game-section').style.display = 'none';
             document.getElementById('main-header').style.display = 'none';
+            showLoginForm();
         }
 
         function showAuthMessage(message) {
@@ -1099,25 +1190,31 @@
         // SOCKET EVENT HANDLERS
         // ═══════════════════════════════════════════════════════════════
 
-        socket.on('loginSuccess', (data) => {
+        // Auto-login on page load if token exists
+        window.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    // Verify token is still valid by trying to use it
+                    socket.emit('authenticate', { token });
+                } catch (error) {
+                    localStorage.removeItem('token');
+                }
+            }
+        });
+
+        socket.on('authenticated', (data) => {
             currentUser = data.username;
             myPlayerId = data.userId;
-            document.getElementById('display-username').textContent = data.username;
+            document.getElementById('display-username').textContent = data.name || data.username;
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('game-section').style.display = 'block';
             document.getElementById('main-header').style.display = 'flex';
         });
 
-        socket.on('loginError', (data) => {
-            showAuthMessage(data.message);
-        });
-
-        socket.on('registerSuccess', (data) => {
-            showAuthMessage('注册成功！请登录 / Registration successful! Please login');
-        });
-
-        socket.on('registerError', (data) => {
-            showAuthMessage(data.message);
+        socket.on('authError', () => {
+            localStorage.removeItem('token');
+            showAuthMessage('会话已过期，请重新登录 / Session expired, please login again');
         });
 
         socket.on('roomsList', (data) => {
