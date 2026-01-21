@@ -685,17 +685,25 @@ app.get('/health', (req, res) => {
 // API: Register
 app.post('/api/register', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, name, password } = req.body;
         
         if (!username || !password) {
             return res.status(400).json({ error: 'Username and password required' });
         }
         
-        const result = await db.createUser(sanitizeInput(username), password);
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+        
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+        
+        const result = await db.createUser(sanitizeInput(username), sanitizeInput(name), password);
         
         if (result.success) {
             const token = jwt.sign(
-                { userId: result.userId, username: result.username },
+                { userId: result.userId, username: result.username, name: result.name },
                 JWT_SECRET,
                 { expiresIn: '7d' }
             );
@@ -704,7 +712,8 @@ app.post('/api/register', async (req, res) => {
                 success: true,
                 token,
                 userId: result.userId,
-                username: result.username
+                username: result.username,
+                name: result.name
             });
         } else {
             res.status(400).json({ error: result.error });
