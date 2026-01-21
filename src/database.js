@@ -19,6 +19,9 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABA
 if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('⚠️  WARNING: Supabase credentials not configured!');
     console.error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables');
+    console.error('SUPABASE_URL:', SUPABASE_URL ? 'Set' : 'MISSING');
+    console.error('SUPABASE_KEY:', SUPABASE_KEY ? 'Set' : 'MISSING');
+    throw new Error('Supabase credentials are required. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
 }
 
 // Initialize Supabase client
