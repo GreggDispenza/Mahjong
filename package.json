@@ -1,28 +1,31 @@
 {
   "name": "mahjong-online",
   "version": "7.0.1",
-  "description": "Hong Kong-style Mahjong multiplayer game with AI",
+  "description": "Hong Kong-style Mahjong multiplayer game with AI - 100% HKOS Compliant",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node test-integration.js",
+    "test": "node src/HKOSEngine.test.js",
     "dev": "nodemon src/server.js"
   },
   "keywords": [
     "mahjong",
     "game",
     "multiplayer",
-    "websocket"
+    "websocket",
+    "hkos",
+    "hong-kong"
   ],
   "author": "Gregg Dispenza",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.6.1"
+    "socket.io": "^4.7.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
